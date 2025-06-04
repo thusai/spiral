@@ -61,3 +61,4 @@ spiral projects         # see all projects
 - **Multiple files:** Interactive selection when multiple YAML files exist  
 - **Schema format:** Edit the generated `config/schema.yml` after `spiral init`
 - **Troubleshooting:** `spiral current` shows your active project and files
+#Test
