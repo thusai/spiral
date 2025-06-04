@@ -4,6 +4,13 @@ CONFIG_DIR="$HOME/.config/spiral"
 CONFIG_FILE="$CONFIG_DIR/config"
 mkdir -p "$CONFIG_DIR"
 
+# Always use config/schema.yml as the schema file
+SCHEMA_PATH="./config/schema.yml"
+if [ ! -f "$SCHEMA_PATH" ]; then
+    echo "❌ Schema file not found at $SCHEMA_PATH"
+    exit 1
+fi
+
 # Function to set active YAML file
 set_active_file() {
     local yaml_file="$1"
@@ -89,7 +96,12 @@ load_schema_field() {
     local section="$1"
     local field="$2"
     local key="$3"
-    yq eval ".$section.$field.$key" "$HOME/.config/spiral/schema.yml"
+    local result=$(yq eval ".$section.$field.$key" "$SCHEMA_PATH")
+    if [ "$result" = "null" ]; then
+        echo ""
+    else
+        echo "$result"
+    fi
 }
 
 # No arguments - list YAML files and show active file
@@ -165,7 +177,7 @@ case "$1" in
                     input_map["$key"]="$value"
                 done
 
-                fields=$(yq eval "keys | .[]" "$HOME/.config/spiral/schema.yml")
+                fields=$(yq eval ".$section | keys | .[]" "$SCHEMA_PATH")
                 json="{"
                 first=true
                 for field in $fields; do
@@ -193,6 +205,9 @@ case "$1" in
                     fi
 
                     value="${value:-null}"
+                    if [ "$value" = "null" ]; then
+                        continue
+                    fi
                     if [ "$first" = true ]; then
                         first=false
                     else
@@ -290,41 +305,215 @@ case "$1" in
                             section="milestones"
                             echo "➕ Adding new milestone to section: $section"
 
+                            # Check if schema.yml exists
+                            if [ ! -f "$SCHEMA_PATH" ]; then
+                                echo "❌ schema.yml not found at $SCHEMA_PATH"
+                                echo "Please create it or copy a sample from the repo."
+                                read -p "Press enter to return to menu..." dummy
+                                continue
+                            fi
+
                             declare -A input_map
-                            fields=$(yq eval "keys | .[]" "$HOME/.config/spiral/schema.yml")
+                            fields=$(yq eval ".milestones | keys | .[]" "$SCHEMA_PATH")
 
                             for field in $fields; do
-                                required=$(yq eval ".milestones.$field.required" "$HOME/.config/spiral/schema.yml")
-                                enum_vals=$(yq eval ".milestones.$field.enum[]" "$HOME/.config/spiral/schema.yml" 2>/dev/null)
+                                required=$(yq eval ".milestones.$field.required" "$SCHEMA_PATH")
+                                enum_vals=$(yq eval ".milestones.$field.enum[]" "$SCHEMA_PATH" 2>/dev/null)
 
-                                prompt="Enter value for $field"
-                                if [ "$required" = "true" ]; then
-                                    prompt="$prompt (required)"
-                                fi
-                                if [ -n "$enum_vals" ]; then
-                                    prompt="$prompt [Options: $enum_vals]"
-                                fi
-                                prompt="$prompt: "
+                                while true; do
+                                    prompt="Enter value for field '$field'"
+                                    if [ "$required" = "true" ]; then
+                                        prompt="$prompt (required)"
+                                    fi
+                                    if [ -n "$enum_vals" ]; then
+                                        prompt="$prompt [Options: $enum_vals]"
+                                    fi
+                                    prompt="$prompt: "
 
-                                read -p "$prompt" value
-                                value="${value:-null}"
-                                input_map["$field"]="$value"
+                                    read -p "$prompt" value
+
+                                    # Don't convert empty values to "null" for required fields
+                                    if [ "$required" = "true" ] && [ -z "$value" ]; then
+                                        echo "❌ Field '$field' is required."
+                                        continue
+                                    fi
+
+                                    # Set default to null only if value is empty and field is not required
+                                    if [ -z "$value" ]; then
+                                        value="null"
+                                    fi
+
+                                    # Only validate against enum if enum values exist AND value is not null
+                                    if [ -n "$enum_vals" ] && [ "$value" != "null" ]; then
+                                        valid_enum=false
+                                        for enum in $enum_vals; do
+                                            if [ "$value" = "$enum" ]; then
+                                                valid_enum=true
+                                                break
+                                            fi
+                                        done
+                                        if [ "$valid_enum" = false ]; then
+                                            echo "❌ Invalid value '$value' for field '$field'. Must be one of: $enum_vals"
+                                            continue
+                                        fi
+                                    fi
+
+                                    input_map["$field"]="$value"
+                                    break
+                                done
                             done
 
                             args=()
                             for key in "${!input_map[@]}"; do
                                 args+=("$key=${input_map[$key]}")
                             done
-
+                            args+=("from_tui=true")
                             spiral add "$section" "${args[@]}"
                             echo ""
                             read -p "Press enter to return to menu..." dummy
                             ;;
                         m)
-                            read -p "Section (e.g. milestones): " section
-                            read -p "ID: " id
-                            read -p "Field and new value (field=value): " fv
-                            spiral m "$section" "$id" "$fv"
+                            echo "🔧 Modify existing milestone"
+                            echo ""
+                            
+                            # Show existing milestones
+                            echo "Existing milestones:"
+                            echo "-------------------"
+                            yq eval '.milestones[] | "\(.id) | \(.title) | \(.release_status)"' "$active_file" | nl -w3 -s'. '
+                            echo ""
+                            
+                            # Get milestone ID
+                            while true; do
+                                read -p "Enter milestone ID to modify: " id
+                                
+                                # Check if milestone exists
+                                title=$(yq eval ".milestones[] | select(.id == \"$id\") | .title" "$active_file")
+                                if [ "$title" = "null" ] || [ -z "$title" ]; then
+                                    echo "❌ Milestone ID '$id' not found. Please try again."
+                                    continue
+                                else
+                                    echo "✅ Found milestone: $title"
+                                    break
+                                fi
+                            done
+                            
+                            echo ""
+                            echo "Current values for milestone $id:"
+                            echo "--------------------------------"
+                            
+                            # Get all fields from schema and show current values
+                            fields=$(yq eval ".milestones | keys | .[]" "$SCHEMA_PATH")
+                            declare -A current_values
+                            field_list=()
+                            
+                            i=1
+                            for field in $fields; do
+                                current_value=$(yq eval ".milestones[] | select(.id == \"$id\") | .$field" "$active_file")
+                                if [ "$current_value" = "null" ]; then
+                                    current_value="(empty)"
+                                fi
+                                current_values["$field"]="$current_value"
+                                field_list+=("$field")
+                                echo "$i. $field: $current_value"
+                                ((i++))
+                            done
+                            
+                            echo ""
+                            while true; do
+                                read -p "Enter field number to modify (1-$((i-1)), or 'done' to finish): " choice
+                                
+                                if [ "$choice" = "done" ]; then
+                                    break
+                                fi
+                                
+                                # Validate choice is a number and in range
+                                if ! [[ "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt $((i-1)) ]; then
+                                    echo "❌ Please enter a number between 1 and $((i-1)), or 'done'"
+                                    continue
+                                fi
+                                
+                                field_index=$((choice-1))
+                                field="${field_list[$field_index]}"
+                                current_value="${current_values[$field]}"
+                                if [ "$current_value" = "(empty)" ]; then
+                                    current_value=""
+                                fi
+                                
+                                echo ""
+                                echo "Modifying field: $field"
+                                echo "Current value: $current_value"
+                                
+                                # Get enum values if they exist
+                                enum_vals=$(yq eval ".milestones.$field.enum[]" "$SCHEMA_PATH" 2>/dev/null)
+                                required=$(yq eval ".milestones.$field.required" "$SCHEMA_PATH")
+                                
+                                while true; do
+                                    prompt="Enter new value for '$field'"
+                                    if [ "$required" = "true" ]; then
+                                        prompt="$prompt (required)"
+                                    fi
+                                    if [ -n "$enum_vals" ]; then
+                                        prompt="$prompt [Options: $enum_vals]"
+                                    fi
+                                    prompt="$prompt: "
+                                    
+                                    read -p "$prompt" new_value
+                                    
+                                    # Handle empty input
+                                    if [ -z "$new_value" ]; then
+                                        if [ "$required" = "true" ]; then
+                                            echo "❌ Field '$field' is required."
+                                            continue
+                                        else
+                                            new_value="null"
+                                        fi
+                                    fi
+                                    
+                                    # Validate enum if needed
+                                    if [ -n "$enum_vals" ] && [ "$new_value" != "null" ]; then
+                                        valid_enum=false
+                                        for enum in $enum_vals; do
+                                            if [ "$new_value" = "$enum" ]; then
+                                                valid_enum=true
+                                                break
+                                            fi
+                                        done
+                                        if [ "$valid_enum" = false ]; then
+                                            echo "❌ Invalid value '$new_value' for field '$field'. Must be one of: $enum_vals"
+                                            continue
+                                        fi
+                                    fi
+                                    
+                                    # Update the milestone
+                                    if [ "$new_value" = "null" ]; then
+                                        yq eval "(.milestones[] | select(.id == \"$id\") | .$field) = null" -i "$active_file"
+                                        echo "✅ Updated $field to (empty)"
+                                    else
+                                        yq eval "(.milestones[] | select(.id == \"$id\") | .$field) = \"$new_value\"" -i "$active_file"
+                                        echo "✅ Updated $field to '$new_value'"
+                                    fi
+                                    
+                                    # Update our tracking
+                                    current_values["$field"]="$new_value"
+                                    if [ "$new_value" = "null" ]; then
+                                        current_values["$field"]="(empty)"
+                                    fi
+                                    
+                                    break
+                                done
+                                
+                                echo ""
+                                echo "Current values for milestone $id:"
+                                echo "--------------------------------"
+                                i=1
+                                for field in $fields; do
+                                    echo "$i. $field: ${current_values[$field]}"
+                                    ((i++))
+                                done
+                                echo ""
+                            done
+                            
+                            echo "🎉 Milestone modification completed!"
                             echo ""
                             read -p "Press enter to return to menu..." dummy
                             ;;

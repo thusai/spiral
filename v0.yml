@@ -42,16 +42,28 @@ milestones:
     release_status: "done"
     success_gate:
       - "cycle status toggled in roadmap"
-  - week: null
-    calendar: null
-    version: null
-    id: S0.5
-    title: null
-    capability: null
-    family: null
-    size: null
-    priority: null
-    release_status: null
-    success_gate: null
-  - {}
-  - {}
+    cycle_status: in-cycle
+  - id: S0.4
+    title: Add or Modify a Milestone
+    week: w2
+    version: v0.1.3
+    release_status: in-progress
+    cycle_status: in-cycle
+    success_gate: milestone created and modified
+    notes: none
+  - id: S0.5
+    title: Test TUI Milestone
+    week: w3
+    version: v0.1.4
+    release_status: planned
+    cycle_status: planned
+    success_gate: test milestone
+    notes: test notes
+  - id: S0.6
+    title: Test Workflow
+    week: s2
+    version: v0.1.5
+    release_status: done
+    cycle_status: in-cycle
+    success_gate: Robust testing
+    notes: test notes
