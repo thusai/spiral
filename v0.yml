@@ -95,4 +95,8 @@ subtasks:
   - id: S3.4.3
     parent_id: S3.4
     title: implement file detection logic
+    status: done
+  - id: S3.4.4
+    parent_id: S3.4
+    title: add interactive file selection
     status: in-progress
