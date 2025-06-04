@@ -561,6 +561,21 @@ smart_commit() {
     fi
 }
 
+# Function to check if ID already exists in git history
+check_id_in_git_history() {
+    local id="$1"
+    
+    # Get all commit messages and extract IDs in [ID] format
+    local existing_ids=$(git log --oneline --all | grep -o '\[S[^]]*\]' | sed 's/\[//g; s/\]//g' | sort | uniq)
+    
+    # Check if the ID already exists
+    if echo "$existing_ids" | grep -q "^$id$"; then
+        return 0  # ID exists
+    else
+        return 1  # ID doesn't exist
+    fi
+}
+
 # Function to set working context
 set_context() {
     local milestone_id="$1"
@@ -1050,10 +1065,10 @@ case "$1" in
                     subtask_title=$(yq eval ".subtasks[]? | select(.id == \"$input\") | .title" "$active_file")
                     
                     if [ "$milestone_title" != "null" ] && [ -n "$milestone_title" ]; then
-                        # Check if milestone is already done
-                        milestone_status=$(yq eval ".milestones[] | select(.id == \"$input\") | .release_status" "$active_file")
-                        if [ "$milestone_status" = "done" ]; then
-                            echo "❌ Milestone $input is already marked as done. Cannot commit again."
+                        # Check if milestone ID already exists in git history
+                        if check_id_in_git_history "$input"; then
+                            echo "❌ Milestone $input has already been committed to git. Cannot commit again."
+                            echo "   Found in git history: $(git log --oneline --grep="\[$input\]" | head -1)"
                             exit 1
                         fi
                         
@@ -1085,10 +1100,10 @@ case "$1" in
                         fi
                         
                     elif [ "$subtask_title" != "null" ] && [ -n "$subtask_title" ]; then
-                        # Check if subtask is already done
-                        subtask_status=$(yq eval ".subtasks[] | select(.id == \"$input\") | .status" "$active_file")
-                        if [ "$subtask_status" = "done" ]; then
-                            echo "❌ Subtask $input is already marked as done. Cannot commit again."
+                        # Check if subtask ID already exists in git history
+                        if check_id_in_git_history "$input"; then
+                            echo "❌ Subtask $input has already been committed to git. Cannot commit again."
+                            echo "   Found in git history: $(git log --oneline --grep="\[$input\]" | head -1)"
                             exit 1
                         fi
                         
