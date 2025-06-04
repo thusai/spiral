@@ -116,3 +116,7 @@ subtasks:
     parent_id: S4.1
     title: Test for Duplication - Replaced YAML validation with git history
     status: in-progress
+  - id: S4.1.2
+    parent_id: S4.1
+    title: Added check_id_in_git_history function for stronger validation
+    status: in-progress
