@@ -83,6 +83,10 @@ milestones:
   - id: S3.4
     title: Auto-detect YAML files
     release_status: in-progress
+  - id: S4.1
+    title: Test for Duplication
+    release_status: in-progress
+    cycle_status: out-of-cycle
 subtasks:
   - id: S3.4.1
     parent_id: S3.4
@@ -108,3 +112,7 @@ subtasks:
     parent_id: S3.4
     title: test new functionality
     status: done
+  - id: S4.1.1
+    parent_id: S4.1
+    title: Test for Duplication - Replaced YAML validation with git history
+    status: in-progress

@@ -496,7 +496,7 @@ smart_commit() {
             
             if [[ "$create_subtask" =~ ^[Nn] ]]; then
                 echo "Available milestones:"
-                yq eval '.milestones[] | "\(.id)  \(.title)"' "$active_file" | head -5
+                yq eval '.milestones[] | .id + "  " + .title' "$active_file" | head -5
                 read -p "Enter milestone ID (or 'skip' for no association): " parent_id
                 
                 if [ "$parent_id" = "skip" ]; then
@@ -521,20 +521,79 @@ smart_commit() {
     else
         # No context
         if [ "$auto_mode" = "--auto" ]; then
-            echo "❌ No working context set. Use 'spiral context <milestone-id>' first for auto-commit"
-            return 1
+            echo "🎯 No working context - auto-creating milestone from message"
+            
+            # Auto-create milestone from message  
+            local auto_title=$(echo "$message" | cut -d'-' -f1 | sed 's/^ *//g; s/ *$//g')
+            if [ ${#auto_title} -gt 50 ]; then
+                auto_title=$(echo "$auto_title" | cut -c1-47)"..."
+            fi
+            
+            # Generate next milestone ID
+            local next_id=$(generate_next_milestone_id)
+            
+            echo "🎯 Auto-creating milestone: $next_id - $auto_title"
+            
+            # Add milestone
+            yq eval ".milestones += [{\"id\": \"$next_id\", \"title\": \"$auto_title\", \"release_status\": \"in-progress\", \"cycle_status\": \"out-of-cycle\"}]" -i "$active_file"
+            
+            # Set as context
+            echo "$next_id" > "$CONFIG_DIR/current_context"
+            
+            # Create subtask
+            subtask_id=$(generate_subtask_id "$next_id")
+            add_subtask "$next_id" "$message" "in-progress"
+            
+            local commit_message="[$subtask_id] $message"
+            git add . && git commit -m "$commit_message"
+            
+            echo "✅ Created milestone: $next_id - $auto_title"
+            echo "✅ Created commit: $commit_message"
+            echo "✅ Added subtask: $subtask_id"
+            echo "✅ Set working context to: $next_id"
+            return 0
         fi
         
         # Show recent milestones and ask
         echo "Recent milestones:"
-        yq eval '.milestones[] | "\(.id)  \(.title)"' "$active_file" | head -5
+        yq eval '.milestones[] | .id + "  " + .title' "$active_file" | head -5
         echo ""
-        read -p "Associate with milestone? [ID/new/skip]: " choice
+        read -p "Associate with milestone? [ID/auto/new/skip]: " choice
         
         case "$choice" in
             "skip")
                 git add . && git commit -m "$message"
                 echo "✅ Created regular commit: $message"
+                ;;
+            "auto")
+                # Auto-create milestone from message
+                local auto_title=$(echo "$message" | cut -d'-' -f1 | sed 's/^ *//g; s/ *$//g')
+                if [ ${#auto_title} -gt 50 ]; then
+                    auto_title=$(echo "$auto_title" | cut -c1-47)"..."
+                fi
+                
+                # Generate next milestone ID
+                local next_id=$(generate_next_milestone_id)
+                
+                echo "🎯 Auto-creating milestone: $next_id - $auto_title"
+                
+                # Add milestone
+                yq eval ".milestones += [{\"id\": \"$next_id\", \"title\": \"$auto_title\", \"release_status\": \"in-progress\", \"cycle_status\": \"out-of-cycle\"}]" -i "$active_file"
+                
+                # Set as context
+                echo "$next_id" > "$CONFIG_DIR/current_context"
+                
+                # Create subtask
+                subtask_id=$(generate_subtask_id "$next_id")
+                add_subtask "$next_id" "$message" "in-progress"
+                
+                local commit_message="[$subtask_id] $message"
+                git add . && git commit -m "$commit_message"
+                
+                echo "✅ Created milestone: $next_id - $auto_title"
+                echo "✅ Created commit: $commit_message"
+                echo "✅ Added subtask: $subtask_id"
+                echo "✅ Set working context to: $next_id"
                 ;;
             "new")
                 echo "Create new milestone first with: spiral add milestones"
@@ -559,6 +618,29 @@ smart_commit() {
                 ;;
         esac
     fi
+}
+
+# Function to generate the next available milestone ID
+generate_next_milestone_id() {
+    local active_file=$(get_active_file)
+    
+    # Get all existing milestone IDs and find the highest number
+    local highest_num=0
+    local existing_ids=$(yq eval '.milestones[].id' "$active_file")
+    
+    while IFS= read -r id; do
+        if [[ "$id" =~ ^S([0-9]+)\.([0-9]+)$ ]]; then
+            local major_num=${BASH_REMATCH[1]}
+            local minor_num=${BASH_REMATCH[2]}
+            if [ "$major_num" -gt "$highest_num" ]; then
+                highest_num=$major_num
+            fi
+        fi
+    done <<< "$existing_ids"
+    
+    # Generate next ID
+    local next_num=$((highest_num + 1))
+    echo "S${next_num}.1"
 }
 
 # Function to check if ID already exists in git history
