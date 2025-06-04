@@ -87,6 +87,10 @@ milestones:
     title: Test for Duplication
     release_status: in-progress
     cycle_status: out-of-cycle
+  - id: S5.1
+    title: Fix all Minor Bugs
+    release_status: planned
+    cycle_status: planned
 subtasks:
   - id: S3.4.1
     parent_id: S3.4
@@ -119,4 +123,12 @@ subtasks:
   - id: S4.1.2
     parent_id: S4.1
     title: Added check_id_in_git_history function for stronger validation
+    status: in-progress
+  - id: S5.1.1
+    parent_id: S5.1
+    title: Fix validation bug when user enters non-existent milestone ID - currently creates malformed subtask IDs like S0.1.1.1
+    status: planned
+  - id: S0.6.1
+    parent_id: S0.6
+    title: Release v0
     status: in-progress

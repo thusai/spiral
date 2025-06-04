@@ -1,6 +1,11 @@
-# Spiral - Linear CLI but for Agent-Native Dev
+# Spiral - Roadmaps That Follow Your Code
 
-Manage project milestones and roadmaps from the command line. Works from any directory, supports multiple projects. 
+**Finally.** A roadmap tool that adapts to how you actually develop, not the other way around.
+
+- 🚀 **Organic workflow**: Commit first, roadmap follows automatically
+- 🎯 **Smart context**: Auto-creates milestones from your commit messages  
+- 🔗 **Git-native**: Uses actual commit history as source of truth
+- ⚡ **Zero friction**: One command commits and tracks everything
 
 ## Quick Install
 
@@ -9,57 +14,62 @@ git clone <this-repo> && cd spiral
 chmod +x install.sh && ./install.sh
 ```
 
-That's it. Now `spiral` works from anywhere.
+Works from anywhere. Forever. It's Yours.
 
-## Start Using It
+## The Magic ✨
 
-Create your first project (auto-detects files):
+**Start developing immediately** - no setup required:
 ```bash
-spiral init myproject                    # finds YAML + schema automatically
-spiral add milestones id=M1.0 title="Launch MVP" release_status=planned
-spiral show milestones id title release_status
+spiral commit "Fix login bug - Add better validation" --auto
+# 🎯 Auto-creating milestone: S4.1 - Fix login bug  
+# ✅ Created commit: [S4.1.1] Fix login bug - Add better validation
+# ✅ Set working context to: S4.1
 ```
 
-If multiple YAML files exist, you choose interactively:
+**Keep developing** - context is maintained:
 ```bash
-spiral init myproject
-# 🔍 Multiple YAML files found:
-# 1. roadmap.yml
-# 2. project.yml
-# Choose YAML file (1-2): 1
+spiral commit "Add password strength meter" --auto  
+# 🔍 Auto-detected context: S4.1 (Fix login bug)
+# ✅ Created commit: [S4.1.2] Add password strength meter
 ```
 
-Launch the interactive interface:
+**See your roadmap** - hierarchical and beautiful:
 ```bash
-spiral tui
+spiral show all
+# 📋 S4.1    in-progress   Fix login bug
+#    └─ S4.1.1   done      Fix login bug - Add better validation  
+#    └─ S4.1.2   done      Add password strength meter
 ```
 
-Switch between projects:
+**Complete milestones** - git validates everything:
 ```bash
-spiral use myproject    # by name
-spiral projects         # see all projects
+spiral commit S4.1 --auto
+# ✅ Committed and marked milestone S4.1 as done
+
+spiral commit S4.1 --auto  
+# ❌ Milestone S4.1 has already been committed to git. Cannot commit again.
 ```
 
-## Commands Reference
+## Core Commands
 
-| Command | Description |
-|---------|-------------|
-| `spiral` | List YAML files in current directory |
-| `spiral init <project> [yaml] [schema]` | Create project (auto-detects files) |
-| `spiral use <project\|file>` | Set active roadmap by name or file |
-| `spiral current` | Show active file and schema |
-| `spiral projects` | Show project configuration |
-| `spiral tui` | Launch interactive interface |
-| `spiral add milestones` | Add new entry |
-| `spiral modify milestones` | Modify entry |
-| `spiral show milestones id title` | Display entries |
-| `spiral commit <id> [--apply]` | Generate/apply commit message |
+| What You Want | Command |
+|---------------|---------|
+| Start working | `spiral commit "message" --auto` |
+| Set context | `spiral context S4.1` |
+| See roadmap | `spiral show all` |
+| Track subtasks | `spiral subtasks S4.1` |
+| Interactive mode | `spiral tui` |
 
-## More Details
+## Multiple Projects? Easy.
 
-- **Auto-detection:** `spiral init myproject` finds YAML/schema files automatically
-- **Multiple files:** Interactive selection when multiple YAML files exist  
-- **Schema format:** Edit the generated `config/schema.yml` after `spiral init`
-- **Troubleshooting:** `spiral current` shows your active project and files
-#Test
-test roadmap
+```bash
+spiral init myproject              # auto-detects YAML + schema files
+spiral use myproject              # switch between projects  
+spiral projects                   # see all configured projects
+```
+
+---
+
+**Want the full garage tour?** This is just the surface. Spiral handles schema validation, cycle planning, milestone dependencies, custom fields, and scales from solo projects to enterprise roadmaps.
+
+But you probably just want to start committing. So do that. 🚀
