@@ -469,7 +469,7 @@ smart_commit() {
     local active_file=$(get_active_file)
     
     if [ -z "$message" ]; then
-        echo "❌ Usage: spiral qcommit <message> [--auto]"
+        echo "❌ Usage: spiral commit <message> [--auto]"
         return 1
     fi
     
@@ -488,26 +488,20 @@ smart_commit() {
         local parent_title=$(yq eval ".milestones[] | select(.id == \"$parent_id\") | .title" "$active_file")
         
         if [ "$auto_mode" = "--auto" ]; then
-            echo "🔍 Detected context: $parent_id ($parent_title)"
-            echo "This looks like work on milestone: $parent_id"
-            read -p "Create subtask? [Y/n]: " create_subtask
-            
-            if [[ "$create_subtask" =~ ^[Nn] ]]; then
-                echo "📝 Creating regular commit..."
-                git add . && git commit -m "$message"
-                return 0
-            fi
+            echo "🔍 Auto-detected context: $parent_id ($parent_title)"
+            echo "Creating subtask automatically..."
         else
             echo "🎯 Current context: $parent_id ($parent_title)"
-            read -p "Associate with this milestone? [Y/n]: " associate
+            read -p "Create subtask for this milestone? [Y/n]: " create_subtask
             
-            if [[ "$associate" =~ ^[Nn] ]]; then
+            if [[ "$create_subtask" =~ ^[Nn] ]]; then
                 echo "Available milestones:"
                 yq eval '.milestones[] | "\(.id)  \(.title)"' "$active_file" | head -5
                 read -p "Enter milestone ID (or 'skip' for no association): " parent_id
                 
                 if [ "$parent_id" = "skip" ]; then
                     git add . && git commit -m "$message"
+                    echo "✅ Created regular commit: $message"
                     return 0
                 fi
             fi
@@ -525,7 +519,13 @@ smart_commit() {
         echo "✅ Added subtask: $subtask_id"
         
     else
-        # No context, show recent milestones
+        # No context
+        if [ "$auto_mode" = "--auto" ]; then
+            echo "❌ No working context set. Use 'spiral context <milestone-id>' first for auto-commit"
+            return 1
+        fi
+        
+        # Show recent milestones and ask
         echo "Recent milestones:"
         yq eval '.milestones[] | "\(.id)  \(.title)"' "$active_file" | head -5
         echo ""
@@ -534,6 +534,7 @@ smart_commit() {
         case "$choice" in
             "skip")
                 git add . && git commit -m "$message"
+                echo "✅ Created regular commit: $message"
                 ;;
             "new")
                 echo "Create new milestone first with: spiral add milestones"
@@ -647,7 +648,7 @@ show_usage() {
     echo "  spiral add <section> <key=value> ...  # Add new entry (auto-fills missing fields)"
     echo "  spiral subtask <parent-id> <title>  # Add subtask to milestone"
     echo "  spiral subtasks <parent-id>     # Show subtasks for milestone"
-    echo "  spiral qcommit <message> [--auto]  # Smart commit with context"
+    echo "  spiral commit <ID|message> [--auto]  # Smart commit or commit existing"
     echo "  spiral m|modify <section> <id> <field=value>  # Modify a value"
     echo "  spiral show <section> [fields]  # Show entries (milestones|all for hierarchy)"
     echo "  spiral tui                      # Launch interactive TUI"
@@ -657,7 +658,7 @@ show_usage() {
     echo "  spiral use myproject            # Set project as active by name"
     echo "  spiral context S3.4             # Set working context to milestone S3.4"
     echo "  spiral subtask S3.4 'Fix validation bug'  # Add subtask to S3.4"
-    echo "  spiral qcommit 'implement auto-detect' --auto  # Smart commit"
+    echo "  spiral commit 'implement auto-detect' --auto  # Smart commit"
     echo "  spiral subtasks S3.4            # Show all subtasks for S3.4"
     echo "  spiral show all                 # Hierarchical view with subtasks"
     echo "  spiral add milestones week=W8 version=0.8.0 id=R8.8  # Auto-fills other fields"
@@ -904,19 +905,7 @@ case "$1" in
         show_subtasks "$2"
         ;;
 
-    qcommit)
-        active_file=$(get_active_file)
-        if [ -z "$active_file" ]; then
-            echo "Error: No active file set. Use 'spiral use <yaml-file>' first."
-            exit 1
-        fi
-        
-        if [ $# -lt 2 ]; then
-            echo "❌ Usage: spiral qcommit <message> [--auto]"
-            exit 1
-        fi
-        smart_commit "$2" "$3"
-        ;;
+
 
     list|schema|add|m|modify|show|commit|tui)
         active_file=$(get_active_file)
@@ -1047,35 +1036,83 @@ case "$1" in
                 ;;
             commit)
                 if [ $# -lt 2 ]; then
-                    echo "Error: Provide the ID to fetch commit message, e.g., spiral commit D3.4 [--apply]"
+                    echo "❌ Usage: spiral commit <ID|message> [--auto]"
                     exit 1
                 fi
-                id="$2"
-                apply=false
-                if [ "$3" = "--apply" ]; then
-                    apply=true
-                fi
-
-                active_file=$(get_active_file)
-                if [ -z "$active_file" ]; then
-                    echo "Error: No active file set. Use 'spiral use <yaml-file>' first."
-                    exit 1
-                fi
-
-                title=$(yq eval ".milestones[] | select(.id == \"$id\") | .title" "$active_file")
-                if [ "$title" = "null" ] || [ -z "$title" ]; then
-                    echo "❌ ID $id not found in milestones."
-                    exit 1
-                fi
-
-                commit_msg="[${id}] ${title}"
-                echo "$commit_msg"
-
-                if [ "$apply" = true ]; then
-                    git commit -m "$commit_msg"
-                    # Update roadmap status to 'done'
-                    yq eval "( .milestones[] | select(.id == \"$id\") ).release_status = \"done\"" -i "$active_file"
-                    echo "✅ Updated release_status to 'done' for $id"
+                
+                input="$2"
+                auto_mode="$3"
+                
+                # Check if input looks like an ID (contains dots or short alphanumeric)
+                if [[ "$input" =~ ^[A-Za-z0-9]+(\.[0-9]+)*$ ]] && [ ${#input} -le 15 ]; then
+                    # This looks like an ID - check if it exists
+                    milestone_title=$(yq eval ".milestones[] | select(.id == \"$input\") | .title" "$active_file")
+                    subtask_title=$(yq eval ".subtasks[]? | select(.id == \"$input\") | .title" "$active_file")
+                    
+                    if [ "$milestone_title" != "null" ] && [ -n "$milestone_title" ]; then
+                        # Existing milestone
+                        commit_msg="[$input] $milestone_title"
+                        echo "Commit message: $commit_msg"
+                        
+                        if [ "$auto_mode" = "--auto" ]; then
+                            if git add . && git commit -m "$commit_msg"; then
+                                yq eval "(.milestones[] | select(.id == \"$input\")).release_status = \"done\"" -i "$active_file"
+                                echo "✅ Auto-committed and marked milestone $input as done"
+                            else
+                                echo "❌ Git commit failed"
+                                exit 1
+                            fi
+                        else
+                            read -p "Commit and mark as done? [Y/n]: " confirm
+                            if [[ ! "$confirm" =~ ^[Nn] ]]; then
+                                if git add . && git commit -m "$commit_msg"; then
+                                    yq eval "(.milestones[] | select(.id == \"$input\")).release_status = \"done\"" -i "$active_file"
+                                    echo "✅ Committed and marked milestone $input as done"
+                                else
+                                    echo "❌ Git commit failed"
+                                    exit 1
+                                fi
+                            else
+                                echo "ℹ️  Skipped commit"
+                            fi
+                        fi
+                        
+                    elif [ "$subtask_title" != "null" ] && [ -n "$subtask_title" ]; then
+                        # Existing subtask
+                        commit_msg="[$input] $subtask_title"
+                        echo "Commit message: $commit_msg"
+                        
+                        if [ "$auto_mode" = "--auto" ]; then
+                            if git add . && git commit -m "$commit_msg"; then
+                                yq eval "(.subtasks[] | select(.id == \"$input\")).status = \"done\"" -i "$active_file"
+                                echo "✅ Auto-committed and marked subtask $input as done"
+                            else
+                                echo "❌ Git commit failed"
+                                exit 1
+                            fi
+                        else
+                            read -p "Commit and mark as done? [Y/n]: " confirm
+                            if [[ ! "$confirm" =~ ^[Nn] ]]; then
+                                if git add . && git commit -m "$commit_msg"; then
+                                    yq eval "(.subtasks[] | select(.id == \"$input\")).status = \"done\"" -i "$active_file"
+                                    echo "✅ Committed and marked subtask $input as done"
+                                else
+                                    echo "❌ Git commit failed"
+                                    exit 1
+                                fi
+                            else
+                                echo "ℹ️  Skipped commit"
+                            fi
+                        fi
+                        
+                    else
+                        echo "❌ ID $input not found in milestones or subtasks"
+                        exit 1
+                    fi
+                    
+                else
+                    # This is a message - use smart commit functionality
+                    smart_commit "$input" "$auto_mode"
                 fi
                 ;;
             tui)
