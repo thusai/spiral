@@ -1,0 +1,29 @@
+
+
+
+milestones:
+  id:
+    required: true
+  title:
+    required: true
+  week:
+    required: false
+  version:
+    required: false
+  release_status:
+    required: true
+    enum:
+      - parked
+      - planned
+      - in-progress
+      - done
+      - cancelled
+  cycle_status:
+    required: false
+    enum:
+      - planned
+      - in-cycle
+  success_gate:
+    required: false
+  notes:
+    required: false
