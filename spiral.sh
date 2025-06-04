@@ -1050,6 +1050,13 @@ case "$1" in
                     subtask_title=$(yq eval ".subtasks[]? | select(.id == \"$input\") | .title" "$active_file")
                     
                     if [ "$milestone_title" != "null" ] && [ -n "$milestone_title" ]; then
+                        # Check if milestone is already done
+                        milestone_status=$(yq eval ".milestones[] | select(.id == \"$input\") | .release_status" "$active_file")
+                        if [ "$milestone_status" = "done" ]; then
+                            echo "❌ Milestone $input is already marked as done. Cannot commit again."
+                            exit 1
+                        fi
+                        
                         # Existing milestone
                         commit_msg="[$input] $milestone_title"
                         echo "Commit message: $commit_msg"
@@ -1078,6 +1085,13 @@ case "$1" in
                         fi
                         
                     elif [ "$subtask_title" != "null" ] && [ -n "$subtask_title" ]; then
+                        # Check if subtask is already done
+                        subtask_status=$(yq eval ".subtasks[] | select(.id == \"$input\") | .status" "$active_file")
+                        if [ "$subtask_status" = "done" ]; then
+                            echo "❌ Subtask $input is already marked as done. Cannot commit again."
+                            exit 1
+                        fi
+                        
                         # Existing subtask
                         commit_msg="[$input] $subtask_title"
                         echo "Commit message: $commit_msg"
