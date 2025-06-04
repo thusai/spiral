@@ -55,15 +55,25 @@ milestones:
     title: Test TUI Milestone
     week: w3
     version: v0.1.4
-    release_status: planned
+    release_status: done
     cycle_status: planned
     success_gate: test milestone
     notes: test notes
   - id: S0.6
     title: Test Workflow
-    week: s2
+    week: W2
     version: v0.1.5
     release_status: done
     cycle_status: in-cycle
     success_gate: Robust testing
+    notes: test notes
+  - id: S0.7
+    title: Generate Prompt Aids
+    week: W2
+    release_status: planned
+  - id: S0.8
+    title: Allow Subtasks in Cycles
+    week: W2
+    release_status: planned
+    success_gate: Subtasks in cycles
     notes: test notes

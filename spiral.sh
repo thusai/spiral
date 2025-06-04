@@ -4,18 +4,60 @@ CONFIG_DIR="$HOME/.config/spiral"
 CONFIG_FILE="$CONFIG_DIR/config"
 mkdir -p "$CONFIG_DIR"
 
-# Always use config/schema.yml as the schema file
-SCHEMA_PATH="./config/schema.yml"
-if [ ! -f "$SCHEMA_PATH" ]; then
-    echo "❌ Schema file not found at $SCHEMA_PATH"
-    exit 1
-fi
+# Function to find schema file for a given YAML file
+find_schema_file() {
+    local yaml_file="$1"
+    local yaml_dir=$(dirname "$(realpath "$yaml_file")")
+    
+    # Look for schema.yml in the same directory as the YAML file
+    if [ -f "$yaml_dir/schema.yml" ]; then
+        echo "$yaml_dir/schema.yml"
+        return 0
+    fi
+    
+    # Look for config/schema.yml relative to the YAML file directory
+    if [ -f "$yaml_dir/config/schema.yml" ]; then
+        echo "$yaml_dir/config/schema.yml"
+        return 0
+    fi
+    
+    # Look for schema.yml in parent directory
+    if [ -f "$yaml_dir/../config/schema.yml" ]; then
+        echo "$(realpath "$yaml_dir/../config/schema.yml")"
+        return 0
+    fi
+    
+    # Look in current working directory
+    if [ -f "./config/schema.yml" ]; then
+        echo "$(realpath "./config/schema.yml")"
+        return 0
+    fi
+    
+    return 1
+}
 
-# Function to set active YAML file
+# Function to set active YAML file and find its schema
 set_active_file() {
     local yaml_file="$1"
-    echo "active_file=$(realpath "$yaml_file")" > "$CONFIG_FILE"
+    local yaml_path=$(realpath "$yaml_file")
+    local schema_path=$(find_schema_file "$yaml_file")
+    
+    if [ -z "$schema_path" ]; then
+        echo "❌ Could not find schema.yml for $yaml_file"
+        echo "Looked in:"
+        echo "  - $(dirname "$yaml_path")/schema.yml"
+        echo "  - $(dirname "$yaml_path")/config/schema.yml"
+        echo "  - $(dirname "$yaml_path")/../config/schema.yml"
+        echo "  - ./config/schema.yml"
+        exit 1
+    fi
+    
+    cat > "$CONFIG_FILE" << EOF
+active_file="$yaml_path"
+schema_path="$schema_path"
+EOF
     echo "Set active file to: $yaml_file"
+    echo "Using schema: $schema_path"
 }
 
 # Function to get active YAML file
@@ -23,6 +65,16 @@ get_active_file() {
     if [ -f "$CONFIG_FILE" ]; then
         source "$CONFIG_FILE"
         echo "$active_file"
+    else
+        echo ""
+    fi
+}
+
+# Function to get schema path
+get_schema_path() {
+    if [ -f "$CONFIG_FILE" ]; then
+        source "$CONFIG_FILE"
+        echo "$schema_path"
     else
         echo ""
     fi
@@ -40,21 +92,31 @@ get_schema_fields() {
 # Function to show usage
 show_usage() {
     echo "Usage:"
-    echo "  spiral                          # List all YAML files"
-    echo "  spiral use <yaml-file>          # Set active YAML file"
-    echo "  spiral current                  # Show current active file"
-    echo "  spiral list                     # Show available sections"
+    echo "  spiral                          # List all YAML files in current directory"
+    echo "  spiral use <yaml-file>          # Set active YAML file and project"
+    echo "  spiral current                  # Show current active file and schema"
+    echo "  spiral projects                 # Show all configured projects"
+    echo "  spiral list                     # Show available sections in active file"
     echo "  spiral schema <section>         # Show schema fields for section"
     echo "  spiral add <section> <key=value> ...  # Add new entry (auto-fills missing fields)"
     echo "  spiral m|modify <section> <id> <field=value>  # Modify a value"
     echo "  spiral show <section> [fields]  # Show entries"
+    echo "  spiral tui                      # Launch interactive TUI"
     echo ""
     echo "Examples:"
-    echo "  spiral use roadmap/v1.yml       # Set active file"
+    echo "  spiral use v0.yml               # Set v0.yml as active (works from any directory)"
+    echo "  spiral use /path/to/roadmap.yml # Set absolute path as active"
     echo "  spiral schema milestones        # Show all fields in milestones"
     echo "  spiral add milestones week=W8 version=0.8.0 id=R8.8  # Auto-fills other fields"
     echo "  spiral m milestones D3.2 release_status=done"
     echo "  spiral show milestones id title"
+    echo ""
+    echo "Project Setup:"
+    echo "  Spiral looks for schema.yml in these locations (in order):"
+    echo "  1. Same directory as the YAML file"
+    echo "  2. config/schema.yml relative to the YAML file"
+    echo "  3. ../config/schema.yml relative to the YAML file"
+    echo "  4. ./config/schema.yml in current directory"
     exit 1
 }
 
@@ -96,7 +158,12 @@ load_schema_field() {
     local section="$1"
     local field="$2"
     local key="$3"
-    local result=$(yq eval ".$section.$field.$key" "$SCHEMA_PATH")
+    local schema_path=$(get_schema_path)
+    if [ -z "$schema_path" ]; then
+        echo "❌ No active project set. Use 'spiral use <yaml-file>' first."
+        exit 1
+    fi
+    local result=$(yq eval ".$section.$field.$key" "$schema_path")
     if [ "$result" = "null" ]; then
         echo ""
     else
@@ -131,10 +198,26 @@ case "$1" in
 
     current)
         active_file=$(get_active_file)
+        schema_path=$(get_schema_path)
         if [ -n "$active_file" ]; then
             echo "Current active file: $active_file"
+            if [ -n "$schema_path" ]; then
+                echo "Using schema: $schema_path"
+            else
+                echo "⚠️  No schema found for this file"
+            fi
         else
             echo "No active file set. Use 'spiral use <yaml-file>' to set one."
+        fi
+        ;;
+
+    projects)
+        if [ -f "$CONFIG_FILE" ]; then
+            echo "Current project configuration:"
+            echo "=============================="
+            cat "$CONFIG_FILE"
+        else
+            echo "No projects configured yet. Use 'spiral use <yaml-file>' to set up a project."
         fi
         ;;
 
@@ -142,6 +225,12 @@ case "$1" in
         active_file=$(get_active_file)
         if [ -z "$active_file" ]; then
             echo "Error: No active file set. Use 'spiral use <yaml-file>' first."
+            exit 1
+        fi
+        
+        schema_path=$(get_schema_path)
+        if [ -z "$schema_path" ]; then
+            echo "Error: No schema found for active file. Use 'spiral use <yaml-file>' to reset."
             exit 1
         fi
         
@@ -177,7 +266,7 @@ case "$1" in
                     input_map["$key"]="$value"
                 done
 
-                fields=$(yq eval ".$section | keys | .[]" "$SCHEMA_PATH")
+                fields=$(yq eval ".$section | keys | .[]" "$schema_path")
                 json="{"
                 first=true
                 for field in $fields; do
@@ -305,20 +394,13 @@ case "$1" in
                             section="milestones"
                             echo "➕ Adding new milestone to section: $section"
 
-                            # Check if schema.yml exists
-                            if [ ! -f "$SCHEMA_PATH" ]; then
-                                echo "❌ schema.yml not found at $SCHEMA_PATH"
-                                echo "Please create it or copy a sample from the repo."
-                                read -p "Press enter to return to menu..." dummy
-                                continue
-                            fi
-
+                            # Schema is already validated above
                             declare -A input_map
-                            fields=$(yq eval ".milestones | keys | .[]" "$SCHEMA_PATH")
+                            fields=$(yq eval ".milestones | keys | .[]" "$schema_path")
 
                             for field in $fields; do
-                                required=$(yq eval ".milestones.$field.required" "$SCHEMA_PATH")
-                                enum_vals=$(yq eval ".milestones.$field.enum[]" "$SCHEMA_PATH" 2>/dev/null)
+                                required=$(yq eval ".milestones.$field.required" "$schema_path")
+                                enum_vals=$(yq eval ".milestones.$field.enum[]" "$schema_path" 2>/dev/null)
 
                                 while true; do
                                     prompt="Enter value for field '$field'"
@@ -401,8 +483,8 @@ case "$1" in
                             echo "Current values for milestone $id:"
                             echo "--------------------------------"
                             
-                            # Get all fields from schema and show current values
-                            fields=$(yq eval ".milestones | keys | .[]" "$SCHEMA_PATH")
+                                                         # Get all fields from schema and show current values
+                             fields=$(yq eval ".milestones | keys | .[]" "$schema_path")
                             declare -A current_values
                             field_list=()
                             
@@ -443,9 +525,9 @@ case "$1" in
                                 echo "Modifying field: $field"
                                 echo "Current value: $current_value"
                                 
-                                # Get enum values if they exist
-                                enum_vals=$(yq eval ".milestones.$field.enum[]" "$SCHEMA_PATH" 2>/dev/null)
-                                required=$(yq eval ".milestones.$field.required" "$SCHEMA_PATH")
+                                                                 # Get enum values if they exist
+                                 enum_vals=$(yq eval ".milestones.$field.enum[]" "$schema_path" 2>/dev/null)
+                                 required=$(yq eval ".milestones.$field.required" "$schema_path")
                                 
                                 while true; do
                                     prompt="Enter new value for '$field'"
