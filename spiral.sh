@@ -2,6 +2,7 @@
 
 CONFIG_DIR="$HOME/.config/spiral"
 CONFIG_FILE="$CONFIG_DIR/config"
+PROJECTS_FILE="$CONFIG_DIR/projects"
 mkdir -p "$CONFIG_DIR"
 
 # Function to find schema file for a given YAML file
@@ -80,6 +81,253 @@ get_schema_path() {
     fi
 }
 
+# Function to auto-detect YAML file in current directory
+find_yaml_file() {
+    local yaml_files=(*.yml *.yaml)
+    local found_files=()
+    
+    for file in "${yaml_files[@]}"; do
+        if [ -f "$file" ]; then
+            found_files+=("$file")
+        fi
+    done
+    
+    if [ ${#found_files[@]} -eq 1 ]; then
+        echo "${found_files[0]}"
+        return 0
+    elif [ ${#found_files[@]} -gt 1 ]; then
+        echo "🔍 Multiple YAML files found:" >&2
+        for i in "${!found_files[@]}"; do
+            echo "$((i+1)). ${found_files[$i]}" >&2
+        done
+        echo "" >&2
+        while true; do
+            read -p "Choose YAML file (1-${#found_files[@]}): " choice >&2
+            if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le ${#found_files[@]} ]; then
+                echo "${found_files[$((choice-1))]}"
+                return 0
+            else
+                echo "❌ Invalid choice. Please enter a number between 1 and ${#found_files[@]}" >&2
+            fi
+        done
+    else
+        echo "❌ No YAML files found in current directory" >&2
+        return 1
+    fi
+}
+
+# Function to create a new project
+create_project() {
+    local project_name="$1"
+    local yaml_file="$2"
+    local schema_file="$3"
+    
+    if [ -z "$project_name" ]; then
+        echo "❌ Usage: spiral init <project-name> [yaml-file] [schema-file]"
+        exit 1
+    fi
+    
+    # Auto-detect YAML file if not provided
+    if [ -z "$yaml_file" ]; then
+        echo "🔍 Auto-detecting YAML file..."
+        yaml_file=$(find_yaml_file "$project_name")
+        if [ $? -ne 0 ]; then
+            exit 1
+        fi
+        echo "✅ Found YAML file: $yaml_file"
+    fi
+    
+    # Auto-detect schema file if not provided
+    if [ -z "$schema_file" ]; then
+        echo "🔍 Auto-detecting schema file..."
+        schema_file=$(find_schema_file "$yaml_file")
+        if [ -z "$schema_file" ]; then
+            echo "❌ Could not find schema.yml for $yaml_file"
+            echo "Looked in:"
+            echo "  - $(dirname "$yaml_file")/schema.yml"
+            echo "  - $(dirname "$yaml_file")/config/schema.yml" 
+            echo "  - $(dirname "$yaml_file")/../config/schema.yml"
+            echo "  - ./config/schema.yml"
+            echo ""
+            echo "Please specify schema file: spiral init $project_name $yaml_file <schema-file>"
+            exit 1
+        fi
+        echo "✅ Found schema file: $schema_file"
+    fi
+    
+    # Check if project already exists
+    if [ -f "$PROJECTS_FILE" ] && grep -q "^$project_name=" "$PROJECTS_FILE"; then
+        echo "❌ Project '$project_name' already exists"
+        exit 1
+    fi
+    
+    # Get absolute paths
+    local yaml_path
+    local schema_path
+    
+    # Resolve absolute path for YAML file
+    if [[ "$yaml_file" = /* ]]; then
+        yaml_path="$yaml_file"
+    else
+        yaml_path="$PWD/$yaml_file"
+    fi
+    
+    # Resolve absolute path for schema file  
+    if [[ "$schema_file" = /* ]]; then
+        schema_path="$schema_file"
+    else
+        schema_path="$PWD/$schema_file"
+    fi
+    
+    # Create directories if they don't exist
+    mkdir -p "$(dirname "$yaml_path")"
+    mkdir -p "$(dirname "$schema_path")"
+    
+    # Create empty YAML file if it doesn't exist
+    if [ ! -f "$yaml_path" ]; then
+        echo "milestones: []" > "$yaml_path"
+        echo "✅ Created $yaml_file"
+    else
+        echo "ℹ️  Using existing $yaml_file"
+    fi
+    
+    # Create basic schema if it doesn't exist
+    if [ ! -f "$schema_path" ]; then
+        cat > "$schema_path" << 'EOF'
+milestones:
+  id:
+    required: true
+  title:
+    required: true
+  week:
+    required: false
+  version:
+    required: false
+  release_status:
+    required: true
+    enum:
+      - parked
+      - planned
+      - in-progress
+      - done
+      - cancelled
+  cycle_status:
+    required: false
+    enum:
+      - planned
+      - in-cycle
+  success_gate:
+    required: false
+  notes:
+    required: false
+  subtasks:
+    required: false
+
+subtasks:
+  id:
+    required: true
+  parent_id:
+    required: true
+  title:
+    required: true
+  status:
+    required: true
+    enum:
+      - planned
+      - in-progress
+      - done
+      - cancelled
+  notes:
+    required: false
+EOF
+        echo "✅ Created $schema_file with default milestone schema"
+    else
+        echo "ℹ️  Using existing $schema_file"
+    fi
+    
+    # Add project to projects file
+    echo "$project_name=$yaml_path|$schema_path" >> "$PROJECTS_FILE"
+    echo "✅ Project '$project_name' created and registered"
+    
+    # Set as active project
+    cat > "$CONFIG_FILE" << EOF
+active_file="$yaml_path"
+schema_path="$schema_path"
+current_project="$project_name"
+EOF
+    echo "✅ Set '$project_name' as active project"
+    echo ""
+    echo "You can now:"
+    echo "  spiral add milestones id=M1.0 title='My First Milestone' release_status=planned"
+    echo "  spiral use $project_name"
+    echo "  spiral show milestones"
+}
+
+# Function to switch to a project by name
+use_project() {
+    local identifier="$1"
+    
+    if [ -z "$identifier" ]; then
+        echo "❌ Usage: spiral use <project-name|yaml-file>"
+        exit 1
+    fi
+    
+    # First check if it's a project name
+    if [ -f "$PROJECTS_FILE" ]; then
+        local project_line=$(grep "^$identifier=" "$PROJECTS_FILE")
+        if [ -n "$project_line" ]; then
+            local yaml_path=$(echo "$project_line" | cut -d'=' -f2 | cut -d'|' -f1)
+            local schema_path=$(echo "$project_line" | cut -d'=' -f2 | cut -d'|' -f2)
+            
+            cat > "$CONFIG_FILE" << EOF
+active_file="$yaml_path"
+schema_path="$schema_path"
+current_project="$identifier"
+EOF
+            echo "✅ Switched to project '$identifier'"
+            echo "   YAML: $yaml_path"
+            echo "   Schema: $schema_path"
+            return
+        fi
+    fi
+    
+    # If not a project name, treat as file path (existing behavior)
+    set_active_file "$identifier"
+}
+
+# Function to list all projects
+list_projects() {
+    if [ ! -f "$PROJECTS_FILE" ] || [ ! -s "$PROJECTS_FILE" ]; then
+        echo "No projects configured yet."
+        echo "Use 'spiral init <project-name> <yaml-file> <schema-file>' to create one."
+        return
+    fi
+    
+    echo "Configured Projects:"
+    echo "==================="
+    
+    local current_project=""
+    if [ -f "$CONFIG_FILE" ]; then
+        source "$CONFIG_FILE"
+        current_project="$current_project"
+    fi
+    
+    while IFS='=' read -r project_name project_info; do
+        local yaml_path=$(echo "$project_info" | cut -d'|' -f1)
+        local schema_path=$(echo "$project_info" | cut -d'|' -f2)
+        
+        local active_marker=""
+        if [ "$project_name" = "$current_project" ]; then
+            active_marker=" ← ACTIVE"
+        fi
+        
+        echo "$project_name$active_marker"
+        echo "  YAML: $yaml_path"
+        echo "  Schema: $schema_path"
+        echo ""
+    done < "$PROJECTS_FILE"
+}
+
 # Function to get schema fields for a section
 get_schema_fields() {
     local file="$1"
@@ -89,27 +337,331 @@ get_schema_fields() {
     yq eval ".$section | map(keys) | flatten | unique" "$file" | sed 's/^- //' | tr '\n' ' '
 }
 
+# Function to generate next subtask ID
+generate_subtask_id() {
+    local parent_id="$1"
+    local active_file=$(get_active_file)
+    
+    # Initialize subtasks array if it doesn't exist
+    yq eval ".subtasks //= []" -i "$active_file"
+    
+    # Find highest existing subtask number for this parent
+    local max_num=$(yq eval ".subtasks[] | select(.parent_id == \"$parent_id\") | .id" "$active_file" | \
+                   grep "^$parent_id\." | sed "s/^$parent_id\.//" | sort -n | tail -1)
+    
+    if [ -z "$max_num" ]; then
+        echo "$parent_id.1"
+    else
+        echo "$parent_id.$((max_num + 1))"
+    fi
+}
+
+# Function to add subtask
+add_subtask() {
+    local parent_id="$1"
+    local title="$2"
+    local status="${3:-planned}"
+    local active_file=$(get_active_file)
+    
+    # Validate parent milestone exists
+    local parent_title=$(yq eval ".milestones[] | select(.id == \"$parent_id\") | .title" "$active_file")
+    if [ "$parent_title" = "null" ] || [ -z "$parent_title" ]; then
+        echo "❌ Parent milestone '$parent_id' not found"
+        return 1
+    fi
+    
+    # Generate subtask ID
+    local subtask_id=$(generate_subtask_id "$parent_id")
+    
+    # Create subtask object
+    local subtask_json="{\"id\":\"$subtask_id\",\"parent_id\":\"$parent_id\",\"title\":\"$title\",\"status\":\"$status\"}"
+    
+    # Add to subtasks array
+    yq eval ".subtasks += [$subtask_json]" -i "$active_file"
+    
+    echo "✅ Added subtask $subtask_id: $title"
+    echo "   Parent: $parent_id ($parent_title)"
+    
+    # Store context for smart commits
+    echo "$parent_id" > "$CONFIG_DIR/current_context"
+    
+    return 0
+}
+
+# Function to show subtasks for a milestone
+show_subtasks() {
+    local parent_id="$1"
+    local active_file=$(get_active_file)
+    
+    if [ -z "$parent_id" ]; then
+        echo "❌ Usage: spiral subtasks <parent-id>"
+        return 1
+    fi
+    
+    # Check if parent exists
+    local parent_title=$(yq eval ".milestones[] | select(.id == \"$parent_id\") | .title" "$active_file")
+    if [ "$parent_title" = "null" ] || [ -z "$parent_title" ]; then
+        echo "❌ Milestone '$parent_id' not found"
+        return 1
+    fi
+    
+    echo "Subtasks for $parent_id: $parent_title"
+    echo "$(printf '─%.0s' {1..50})"
+    
+    # Show subtasks
+    local subtasks=$(yq eval ".subtasks[]? | select(.parent_id == \"$parent_id\")" "$active_file")
+    if [ -z "$subtasks" ] || [ "$subtasks" = "null" ]; then
+        echo "No subtasks found"
+        return 0
+    fi
+    
+    # Format and display subtasks
+    yq eval ".subtasks[]? | select(.parent_id == \"$parent_id\") | \"\(.id)  \(.status)  \(.title)\"" "$active_file" | \
+    while read -r line; do
+        if [ -n "$line" ]; then
+            id=$(echo "$line" | awk '{print $1}')
+            status=$(echo "$line" | awk '{print $2}')
+            title=$(echo "$line" | cut -d' ' -f3-)
+            
+            # Colorize status
+            case "$status" in
+                "done") colored_status="\033[32m$status\033[0m" ;;
+                "in-progress") colored_status="\033[33m$status\033[0m" ;;
+                "planned") colored_status="\033[36m$status\033[0m" ;;
+                "cancelled") colored_status="\033[31m$status\033[0m" ;;
+                *) colored_status="$status" ;;
+            esac
+            
+            printf "  %-12s %-15s %s\n" "$id" "$(echo -e "$colored_status")" "$title"
+        fi
+    done
+}
+
+# Function to show recent working context
+show_context() {
+    local active_file=$(get_active_file)
+    
+    echo "Recent Working Context:"
+    echo "======================"
+    
+    # Show current context if exists
+    if [ -f "$CONFIG_DIR/current_context" ]; then
+        local current_context=$(cat "$CONFIG_DIR/current_context")
+        local context_title=$(yq eval ".milestones[] | select(.id == \"$current_context\") | .title" "$active_file")
+        echo "🎯 Current: $current_context - $context_title"
+        echo ""
+    fi
+    
+    # Show recent milestones (last 5 with in-progress or in-cycle status)
+    echo "Recent milestones:"
+    yq eval '.milestones[] | select(.release_status == "in-progress" or .cycle_status == "in-cycle") | "\(.id)  \(.title)"' "$active_file" | \
+    head -5 | while read -r line; do
+        if [ -n "$line" ]; then
+            echo "  $line"
+        fi
+    done
+}
+
+# Function for smart commit with auto-context detection
+smart_commit() {
+    local message="$1"
+    local auto_mode="$2"
+    local active_file=$(get_active_file)
+    
+    if [ -z "$message" ]; then
+        echo "❌ Usage: spiral qcommit <message> [--auto]"
+        return 1
+    fi
+    
+    # Check git status
+    if ! git status &>/dev/null; then
+        echo "❌ Not in a git repository"
+        return 1
+    fi
+    
+    local parent_id=""
+    local subtask_id=""
+    
+    # Try to detect context
+    if [ -f "$CONFIG_DIR/current_context" ]; then
+        parent_id=$(cat "$CONFIG_DIR/current_context")
+        local parent_title=$(yq eval ".milestones[] | select(.id == \"$parent_id\") | .title" "$active_file")
+        
+        if [ "$auto_mode" = "--auto" ]; then
+            echo "🔍 Detected context: $parent_id ($parent_title)"
+            echo "This looks like work on milestone: $parent_id"
+            read -p "Create subtask? [Y/n]: " create_subtask
+            
+            if [[ "$create_subtask" =~ ^[Nn] ]]; then
+                echo "📝 Creating regular commit..."
+                git add . && git commit -m "$message"
+                return 0
+            fi
+        else
+            echo "🎯 Current context: $parent_id ($parent_title)"
+            read -p "Associate with this milestone? [Y/n]: " associate
+            
+            if [[ "$associate" =~ ^[Nn] ]]; then
+                echo "Available milestones:"
+                yq eval '.milestones[] | "\(.id)  \(.title)"' "$active_file" | head -5
+                read -p "Enter milestone ID (or 'skip' for no association): " parent_id
+                
+                if [ "$parent_id" = "skip" ]; then
+                    git add . && git commit -m "$message"
+                    return 0
+                fi
+            fi
+        fi
+        
+        # Create subtask and commit
+        subtask_id=$(generate_subtask_id "$parent_id")
+        add_subtask "$parent_id" "$message" "in-progress"
+        
+        # Create commit with subtask tagging
+        local commit_message="[$subtask_id] $message"
+        git add . && git commit -m "$commit_message"
+        
+        echo "✅ Created commit: $commit_message"
+        echo "✅ Added subtask: $subtask_id"
+        
+    else
+        # No context, show recent milestones
+        echo "Recent milestones:"
+        yq eval '.milestones[] | "\(.id)  \(.title)"' "$active_file" | head -5
+        echo ""
+        read -p "Associate with milestone? [ID/new/skip]: " choice
+        
+        case "$choice" in
+            "skip")
+                git add . && git commit -m "$message"
+                ;;
+            "new")
+                echo "Create new milestone first with: spiral add milestones"
+                return 1
+                ;;
+            *)
+                # Validate milestone exists
+                local milestone_title=$(yq eval ".milestones[] | select(.id == \"$choice\") | .title" "$active_file")
+                if [ "$milestone_title" = "null" ] || [ -z "$milestone_title" ]; then
+                    echo "❌ Milestone '$choice' not found"
+                    return 1
+                fi
+                
+                subtask_id=$(generate_subtask_id "$choice")
+                add_subtask "$choice" "$message" "in-progress"
+                
+                local commit_message="[$subtask_id] $message"
+                git add . && git commit -m "$commit_message"
+                
+                echo "✅ Created commit: $commit_message"
+                echo "✅ Added subtask: $subtask_id"
+                ;;
+        esac
+    fi
+}
+
+# Function to set working context
+set_context() {
+    local milestone_id="$1"
+    local active_file=$(get_active_file)
+    
+    if [ -z "$milestone_id" ]; then
+        echo "❌ Usage: spiral context <milestone-id>"
+        return 1
+    fi
+    
+    # Validate milestone exists
+    local title=$(yq eval ".milestones[] | select(.id == \"$milestone_id\") | .title" "$active_file")
+    if [ "$title" = "null" ] || [ -z "$title" ]; then
+        echo "❌ Milestone '$milestone_id' not found"
+        return 1
+    fi
+    
+    echo "$milestone_id" > "$CONFIG_DIR/current_context"
+    echo "✅ Set working context to: $milestone_id - $title"
+}
+
+# Function to show hierarchical view
+show_hierarchical() {
+    local active_file=$(get_active_file)
+    
+    echo "Project Roadmap (Hierarchical View)"
+    echo "=================================="
+    echo ""
+    
+    # Get milestone count
+    local milestone_count=$(yq eval '.milestones | length' "$active_file")
+    
+    # Process each milestone by index
+    for ((i=0; i<milestone_count; i++)); do
+        local id=$(yq eval ".milestones[$i].id" "$active_file")
+        local title=$(yq eval ".milestones[$i].title" "$active_file")
+        local status=$(yq eval ".milestones[$i].release_status" "$active_file")
+        
+        # Skip null entries
+        if [ "$id" = "null" ]; then
+            continue
+        fi
+        
+        # Colorize status
+        case "$status" in
+            "done") colored_status="\033[32m$status\033[0m" ;;
+            "in-progress") colored_status="\033[33m$status\033[0m" ;;
+            "planned") colored_status="\033[36m$status\033[0m" ;;
+            "cancelled") colored_status="\033[31m$status\033[0m" ;;
+            *) colored_status="$status" ;;
+        esac
+        
+        printf "📋 %-12s %-15s %s\n" "$id" "$(echo -e "$colored_status")" "$title"
+        
+        # Show subtasks for this milestone  
+        yq eval ".subtasks[]? | select(.parent_id == \"$id\") | \"\(.id)|\(.status)|\(.title)\"" "$active_file" | \
+        while IFS='|' read -r sub_id sub_status sub_title; do
+            if [ -n "$sub_id" ]; then
+                case "$sub_status" in
+                    "done") colored_sub_status="\033[32m$sub_status\033[0m" ;;
+                    "in-progress") colored_sub_status="\033[33m$sub_status\033[0m" ;;
+                    "planned") colored_sub_status="\033[36m$sub_status\033[0m" ;;
+                    "cancelled") colored_sub_status="\033[31m$sub_status\033[0m" ;;
+                    *) colored_sub_status="$sub_status" ;;
+                esac
+                
+                printf "   └─ %-10s %-15s %s\n" "$sub_id" "$(echo -e "$colored_sub_status")" "$sub_title"
+            fi
+        done
+        echo ""
+    done
+}
+
 # Function to show usage
 show_usage() {
     echo "Usage:"
     echo "  spiral                          # List all YAML files in current directory"
+    echo "  spiral init <project> [yaml] [schema]  # Create new project"
     echo "  spiral use <yaml-file>          # Set active YAML file and project"
     echo "  spiral current                  # Show current active file and schema"
     echo "  spiral projects                 # Show all configured projects"
+    echo "  spiral context [milestone-id]  # Show/set working context"
     echo "  spiral list                     # Show available sections in active file"
     echo "  spiral schema <section>         # Show schema fields for section"
     echo "  spiral add <section> <key=value> ...  # Add new entry (auto-fills missing fields)"
+    echo "  spiral subtask <parent-id> <title>  # Add subtask to milestone"
+    echo "  spiral subtasks <parent-id>     # Show subtasks for milestone"
+    echo "  spiral qcommit <message> [--auto]  # Smart commit with context"
     echo "  spiral m|modify <section> <id> <field=value>  # Modify a value"
-    echo "  spiral show <section> [fields]  # Show entries"
+    echo "  spiral show <section> [fields]  # Show entries (milestones|all for hierarchy)"
     echo "  spiral tui                      # Launch interactive TUI"
     echo ""
     echo "Examples:"
-    echo "  spiral use v0.yml               # Set v0.yml as active (works from any directory)"
-    echo "  spiral use /path/to/roadmap.yml # Set absolute path as active"
-    echo "  spiral schema milestones        # Show all fields in milestones"
+    echo "  spiral init myproject roadmap.yml config/schema.yml  # Create new project"
+    echo "  spiral use myproject            # Set project as active by name"
+    echo "  spiral context S3.4             # Set working context to milestone S3.4"
+    echo "  spiral subtask S3.4 'Fix validation bug'  # Add subtask to S3.4"
+    echo "  spiral qcommit 'implement auto-detect' --auto  # Smart commit"
+    echo "  spiral subtasks S3.4            # Show all subtasks for S3.4"
+    echo "  spiral show all                 # Hierarchical view with subtasks"
     echo "  spiral add milestones week=W8 version=0.8.0 id=R8.8  # Auto-fills other fields"
-    echo "  spiral m milestones D3.2 release_status=done"
-    echo "  spiral show milestones id title"
+    echo "  spiral show milestones id title # Clean milestone list"
     echo ""
     echo "Project Setup:"
     echo "  Spiral looks for schema.yml in these locations (in order):"
@@ -127,7 +679,7 @@ list_yaml_files() {
     find . -type f -name "*.yml" -o -name "*.yaml" | sed 's/^../  /'
 }
 
-# Function to show specific fields for a section
+# Function to show specific fields for a section in clean column format
 show_fields() {
     local file="$1"
     local section="$2"
@@ -137,19 +689,95 @@ show_fields() {
     # Get the count of items in the section
     local count=$(yq eval ".$section | length" "$file")
     
-    for ((i=0; i<count; i++)); do
-        local line=""
-        for field in "${fields[@]}"; do
-            local value=$(yq eval ".$section[$i].$field" "$file")
-            if [ "$value" != "null" ]; then
-                if [ -z "$line" ]; then
-                    line="$value"
-                else
-                    line="$line | $value"
-                fi
+    if [ $count -eq 0 ]; then
+        echo "No entries found in $section"
+        return
+    fi
+    
+    # Collect all data first to calculate column widths
+    declare -a all_rows
+    declare -a col_widths
+    
+    # Initialize column widths with header lengths  
+    for i in "${!fields[@]}"; do
+        col_widths[$i]=${#fields[$i]}
+    done
+    
+    # Collect data and calculate max widths (without color codes)
+    for ((row=0; row<count; row++)); do
+        local row_data=()
+        for col in "${!fields[@]}"; do
+            local field="${fields[$col]}"
+            local value=$(yq eval ".$section[$row].$field" "$file")
+            if [ "$value" = "null" ]; then
+                value=""
+            fi
+            row_data+=("$value")
+            
+            # Update column width if this value is longer
+            if [ ${#value} -gt ${col_widths[$col]} ]; then
+                col_widths[$col]=${#value}
             fi
         done
-        echo "$line"
+        all_rows+=("$(IFS='|'; echo "${row_data[*]}")")
+    done
+    
+    # Function to colorize status values
+    colorize_status() {
+        local value="$1"
+        local field="$2"
+        
+        if [[ "$field" == "release_status" || "$field" == "cycle_status" ]]; then
+            case "$value" in
+                "done") echo -e "\033[32m$value\033[0m" ;;        # Green
+                "in-progress"|"starting") echo -e "\033[33m$value\033[0m" ;;   # Yellow  
+                "planned") echo -e "\033[36m$value\033[0m" ;;      # Cyan
+                "cancelled"|"skipped") echo -e "\033[31m$value\033[0m" ;;      # Red
+                "in-cycle") echo -e "\033[35m$value\033[0m" ;;     # Magenta
+                *) echo "$value" ;;
+            esac
+        else
+            echo "$value"
+        fi
+    }
+    
+    # Print header with simple underline
+    for i in "${!fields[@]}"; do
+        printf "%-${col_widths[$i]}s" "${fields[$i]^^}"  # Uppercase headers
+        if [ $i -lt $((${#fields[@]} - 1)) ]; then
+            printf "  "
+        fi
+    done
+    printf "\n"
+    
+    # Print separator line
+    for i in "${!fields[@]}"; do
+        printf "%-${col_widths[$i]}s" "$(printf '─%.0s' $(seq 1 ${col_widths[$i]}))"
+        if [ $i -lt $((${#fields[@]} - 1)) ]; then
+            printf "  "
+        fi
+    done
+    printf "\n"
+    
+    # Print data rows
+    for row_line in "${all_rows[@]}"; do
+        IFS='|' read -ra row_data <<< "$row_line"
+        for i in "${!row_data[@]}"; do
+            local value="${row_data[$i]}"
+            local field="${fields[$i]}"
+            local colored_value=$(colorize_status "$value" "$field")
+            
+            # Calculate padding (accounting for color codes not taking visual space)
+            local visual_length=${#value}
+            local total_length=${#colored_value}
+            local padding=$((${col_widths[$i]} - visual_length))
+            
+            printf "%s%*s" "$colored_value" $padding ""
+            if [ $i -lt $((${#row_data[@]} - 1)) ]; then
+                printf "  "
+            fi
+        done
+        printf "\n"
     done
 }
 
@@ -184,41 +812,110 @@ fi
 
 # Process commands
 case "$1" in
+    init)
+        if [ $# -lt 2 ] || [ $# -gt 4 ]; then
+            echo "❌ Usage: spiral init <project-name> [yaml-file] [schema-file]"
+            exit 1
+        fi
+        create_project "$2" "$3" "$4"
+        ;;
+
     use)
         if [ $# -ne 2 ]; then
-            echo "Error: Specify YAML file to use"
+            echo "❌ Usage: spiral use <project-name|yaml-file>"
             exit 1
         fi
-        if [ ! -f "$2" ]; then
-            echo "Error: File '$2' not found"
-            exit 1
-        fi
-        set_active_file "$2"
+        use_project "$2"
         ;;
 
     current)
         active_file=$(get_active_file)
         schema_path=$(get_schema_path)
         if [ -n "$active_file" ]; then
+            current_project=""
+            if [ -f "$CONFIG_FILE" ]; then
+                source "$CONFIG_FILE"
+                current_project="$current_project"
+            fi
+            
             echo "Current active file: $active_file"
+            if [ -n "$current_project" ]; then
+                echo "Project: $current_project"
+            fi
             if [ -n "$schema_path" ]; then
                 echo "Using schema: $schema_path"
             else
                 echo "⚠️  No schema found for this file"
             fi
         else
-            echo "No active file set. Use 'spiral use <yaml-file>' to set one."
+            echo "No active file set. Use 'spiral use <project-name|yaml-file>' to set one."
         fi
         ;;
 
     projects)
-        if [ -f "$CONFIG_FILE" ]; then
-            echo "Current project configuration:"
-            echo "=============================="
-            cat "$CONFIG_FILE"
+        list_projects
+        ;;
+
+    context)
+        if [ $# -eq 1 ]; then
+            # Show context
+            active_file=$(get_active_file)
+            if [ -z "$active_file" ]; then
+                echo "Error: No active file set. Use 'spiral use <yaml-file>' first."
+                exit 1
+            fi
+            show_context
         else
-            echo "No projects configured yet. Use 'spiral use <yaml-file>' to set up a project."
+            # Set context
+            active_file=$(get_active_file)
+            if [ -z "$active_file" ]; then
+                echo "Error: No active file set. Use 'spiral use <yaml-file>' first."
+                exit 1
+            fi
+            set_context "$2"
         fi
+        ;;
+
+    subtask)
+        active_file=$(get_active_file)
+        if [ -z "$active_file" ]; then
+            echo "Error: No active file set. Use 'spiral use <yaml-file>' first."
+            exit 1
+        fi
+        
+        if [ $# -ne 3 ]; then
+            echo "❌ Usage: spiral subtask <parent-id> <title>"
+            exit 1
+        fi
+        add_subtask "$2" "$3"
+        ;;
+
+    subtasks)
+        active_file=$(get_active_file)
+        if [ -z "$active_file" ]; then
+            echo "Error: No active file set. Use 'spiral use <yaml-file>' first."
+            exit 1
+        fi
+        
+        if [ $# -ne 2 ]; then
+            echo "❌ Usage: spiral subtasks <parent-id>"
+            exit 1
+        fi
+        show_subtasks "$2"
+        ;;
+
+    qcommit)
+        active_file=$(get_active_file)
+        if [ -z "$active_file" ]; then
+            echo "Error: No active file set. Use 'spiral use <yaml-file>' first."
+            exit 1
+        fi
+        
+        if [ $# -lt 2 ]; then
+            echo "❌ Usage: spiral qcommit <message> [--auto]"
+            exit 1
+        fi
+        smart_commit "$2" "$3"
         ;;
 
     list|schema|add|m|modify|show|commit|tui)
@@ -333,6 +1030,12 @@ case "$1" in
                 fi
                 section="$2"
                 shift 2
+                
+                # Special case for hierarchical view
+                if [ "$section" = "all" ]; then
+                    show_hierarchical
+                    exit 0
+                fi
                 
                 if [ $# -eq 0 ]; then
                     # Show all fields

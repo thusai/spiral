@@ -77,3 +77,22 @@ milestones:
     release_status: planned
     success_gate: Subtasks in cycles
     notes: test notes
+  - id: S0.9
+    title: Install and Use anywhere; Not git yet
+    release_status: done
+  - id: S3.4
+    title: Auto-detect YAML files
+    release_status: in-progress
+subtasks:
+  - id: S3.4.1
+    parent_id: S3.4
+    title: Implement file detection logic
+    status: planned
+  - id: S3.4.2
+    parent_id: S3.4
+    title: Add interactive selection UI
+    status: planned
+  - id: S3.4.3
+    parent_id: S3.4
+    title: implement file detection logic
+    status: in-progress
