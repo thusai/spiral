@@ -107,4 +107,4 @@ subtasks:
   - id: S3.4.6
     parent_id: S3.4
     title: test new functionality
-    status: planned
+    status: done
