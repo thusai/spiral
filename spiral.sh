@@ -439,7 +439,7 @@ show_subtasks() {
                 "done") colored_status="\033[32m$status\033[0m" ;;
                 "in-progress") colored_status="\033[33m$status\033[0m" ;;
                 "planned") colored_status="\033[36m$status\033[0m" ;;
-                "parked") colored_status="\033[91m$status\033[0m" ;;
+                "parked") colored_status="\033[38;2;255;153;153m$status\033[0m" ;;
                 "cancelled") colored_status="\033[31m$status\033[0m" ;;
                 *) colored_status="$status" ;;
             esac
@@ -724,7 +724,7 @@ show_hierarchical() {
             "done") colored_status="\033[32m$status\033[0m" ;;
             "in-progress") colored_status="\033[33m$status\033[0m" ;;
             "planned") colored_status="\033[36m$status\033[0m" ;;
-            "parked") colored_status="\033[91m$status\033[0m" ;;
+            "parked") colored_status="\033[38;2;255;153;153m$status\033[0m" ;;
             "cancelled") colored_status="\033[31m$status\033[0m" ;;
             *) colored_status="$status" ;;
         esac
@@ -739,6 +739,7 @@ show_hierarchical() {
                     "done") colored_sub_status="\033[32m$sub_status\033[0m" ;;
                     "in-progress") colored_sub_status="\033[33m$sub_status\033[0m" ;;
                     "planned") colored_sub_status="\033[36m$sub_status\033[0m" ;;
+                    "parked") colored_sub_status="\033[38;2;255;153;153m$sub_status\033[0m" ;;      # Custom Color FF9999
                     "cancelled") colored_sub_status="\033[31m$sub_status\033[0m" ;;
                     *) colored_sub_status="$sub_status" ;;
                 esac
@@ -849,6 +850,7 @@ show_fields() {
                 "done") echo -e "\033[32m$value\033[0m" ;;        # Green
                 "in-progress"|"starting") echo -e "\033[33m$value\033[0m" ;;   # Yellow  
                 "planned") echo -e "\033[36m$value\033[0m" ;;      # Cyan
+                "parked") echo -e "\033[38;2;255;153;153m$value\033[0m" ;;      # Custom Color FF9999
                 "cancelled"|"skipped") echo -e "\033[31m$value\033[0m" ;;      # Red
                 "in-cycle") echo -e "\033[35m$value\033[0m" ;;     # Magenta
                 *) echo "$value" ;;
