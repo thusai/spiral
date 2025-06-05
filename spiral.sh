@@ -428,6 +428,7 @@ show_subtasks() {
                 "done") colored_status="\033[32m$status\033[0m" ;;
                 "in-progress") colored_status="\033[33m$status\033[0m" ;;
                 "planned") colored_status="\033[36m$status\033[0m" ;;
+                "parked") colored_status="\033[91m$status\033[0m" ;;
                 "cancelled") colored_status="\033[31m$status\033[0m" ;;
                 *) colored_status="$status" ;;
             esac
