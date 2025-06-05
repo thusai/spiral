@@ -101,6 +101,9 @@ milestones:
     title: Fix project context isolation
     release_status: in-progress
     cycle_status: out-of-cycle
+  - id: U2.0
+    title: Finetune UX for Human-AI, AI-AI, Human-Human
+    release_status: planned
 subtasks:
   - id: S3.4.1
     parent_id: S3.4
@@ -161,4 +164,8 @@ subtasks:
   - id: D1.1.2
     parent_id: D1.1
     title: Changed color status for parked in all place
+    status: in-progress
+  - id: U2.0.1
+    parent_id: U2.0
+    title: Test Readme for Agents in cursor rules
     status: in-progress

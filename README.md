@@ -73,3 +73,9 @@ spiral projects                   # see all configured projects
 **Want the full garage tour?** This is just the surface. Spiral handles schema validation, cycle planning, milestone dependencies, custom fields, and scales from solo projects to enterprise roadmaps.
 
 But you probably just want to start committing. So do that. 🚀
+
+---
+
+**For AI Agents**: 
+- **Cursor**: Use [`spiral_agent.mdc`](spiral_agent.mdc) - Add to cursor rules for automatic agent assistance
+- **Other LLMs**: See [`spiral_agent.yml`](spiral_agent.yml) for comprehensive usage patterns and decision trees
