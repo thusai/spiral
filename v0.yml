@@ -91,6 +91,9 @@ milestones:
     title: Fix all Minor Bugs
     release_status: planned
     cycle_status: planned
+  - id: D1.1
+    title: Feedback Text & Icons Redesign
+    release_status: planned
 subtasks:
   - id: S3.4.1
     parent_id: S3.4
@@ -131,4 +134,8 @@ subtasks:
   - id: S0.6.1
     parent_id: S0.6
     title: Release v0
+    status: in-progress
+  - id: D1.1.1
+    parent_id: D1.1
+    title: Changed couple of wrong ❌ with subtler wrong ⛔︎
     status: in-progress

@@ -706,6 +706,7 @@ show_hierarchical() {
             "done") colored_status="\033[32m$status\033[0m" ;;
             "in-progress") colored_status="\033[33m$status\033[0m" ;;
             "planned") colored_status="\033[36m$status\033[0m" ;;
+            "parked") colored_status="\033[91m$status\033[0m" ;;
             "cancelled") colored_status="\033[31m$status\033[0m" ;;
             *) colored_status="$status" ;;
         esac
@@ -886,7 +887,7 @@ load_schema_field() {
     local key="$3"
     local schema_path=$(get_schema_path)
     if [ -z "$schema_path" ]; then
-        echo "❌ No active project set. Use 'spiral use <yaml-file>' first."
+        echo "⛔︎ No active project set. Use 'spiral use <yaml-file>' first."
         exit 1
     fi
     local result=$(yq eval ".$section.$field.$key" "$schema_path")
@@ -912,7 +913,7 @@ fi
 case "$1" in
     init)
         if [ $# -lt 2 ] || [ $# -gt 4 ]; then
-            echo "❌ Usage: spiral init <project-name> [yaml-file] [schema-file]"
+            echo "⛔︎ Usage: spiral init <project-name> [yaml-file] [schema-file]"
             exit 1
         fi
         create_project "$2" "$3" "$4"
