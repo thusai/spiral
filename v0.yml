@@ -150,3 +150,7 @@ subtasks:
     parent_id: S6.1
     title: Fix project context isolation - context now scoped per project to prevent cross-project validation errors
     status: in-progress
+  - id: S5.1.2
+    parent_id: S5.1
+    title: Fix subtask ID generation to check git history - prevents duplicate IDs in commits like D1.1.1
+    status: in-progress
