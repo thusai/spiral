@@ -154,3 +154,7 @@ subtasks:
     parent_id: S5.1
     title: Fix subtask ID generation to check git history - prevents duplicate IDs in commits like D1.1.1
     status: in-progress
+  - id: S5.1.3
+    parent_id: S5.1
+    title: Test git-aware subtask generation after fixes
+    status: in-progress
