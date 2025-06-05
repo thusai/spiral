@@ -97,6 +97,10 @@ milestones:
   - id: P1.1
     title: Refactor Program to Python
     release_status: planned
+  - id: S6.1
+    title: Fix project context isolation
+    release_status: in-progress
+    cycle_status: out-of-cycle
 subtasks:
   - id: S3.4.1
     parent_id: S3.4
@@ -141,4 +145,8 @@ subtasks:
   - id: D1.1.1
     parent_id: D1.1
     title: Changed couple of wrong ❌ with subtler wrong ⛔︎
+    status: in-progress
+  - id: S6.1.1
+    parent_id: S6.1
+    title: Fix project context isolation - context now scoped per project to prevent cross-project validation errors
     status: in-progress

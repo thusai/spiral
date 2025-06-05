@@ -337,7 +337,7 @@ get_schema_fields() {
     yq eval ".$section | map(keys) | flatten | unique" "$file" | sed 's/^- //' | tr '\n' ' '
 }
 
-# Function to generate next subtask ID
+# Function to generate next subtask ID (git-aware)
 generate_subtask_id() {
     local parent_id="$1"
     local active_file=$(get_active_file)
@@ -345,9 +345,19 @@ generate_subtask_id() {
     # Initialize subtasks array if it doesn't exist
     yq eval ".subtasks //= []" -i "$active_file"
     
-    # Find highest existing subtask number for this parent
-    local max_num=$(yq eval ".subtasks[] | select(.parent_id == \"$parent_id\") | .id" "$active_file" | \
-                   grep "^$parent_id\." | sed "s/^$parent_id\.//" | sort -n | tail -1)
+    # Find highest existing subtask number from git history (primary source)
+    local git_max_num=$(git log --oneline --all | grep -o "\[$parent_id\.[0-9]*\]" | \
+                       sed "s/\[$parent_id\.//g; s/\]//g" | sort -n | tail -1)
+    
+    # Also check YAML as backup
+    local yaml_max_num=$(yq eval ".subtasks[] | select(.parent_id == \"$parent_id\") | .id" "$active_file" | \
+                        grep "^$parent_id\." | sed "s/^$parent_id\.//" | sort -n | tail -1)
+    
+    # Use the higher of the two
+    local max_num=$git_max_num
+    if [ -n "$yaml_max_num" ] && [ "$yaml_max_num" -gt "${max_num:-0}" ]; then
+        max_num=$yaml_max_num
+    fi
     
     if [ -z "$max_num" ]; then
         echo "$parent_id.1"
@@ -382,8 +392,9 @@ add_subtask() {
     echo "✅ Added subtask $subtask_id: $title"
     echo "   Parent: $parent_id ($parent_title)"
     
-    # Store context for smart commits
-    echo "$parent_id" > "$CONFIG_DIR/current_context"
+    # Store context for smart commits (project-scoped)
+    local project_name=$(basename "$active_file" .yml)
+    echo "$parent_id" > "$CONFIG_DIR/current_context_${project_name}"
     
     return 0
 }
@@ -445,9 +456,11 @@ show_context() {
     echo "Recent Working Context:"
     echo "======================"
     
-    # Show current context if exists
-    if [ -f "$CONFIG_DIR/current_context" ]; then
-        local current_context=$(cat "$CONFIG_DIR/current_context")
+    # Show current context if exists (project-scoped)
+    local project_name=$(basename "$active_file" .yml)
+    local context_file="$CONFIG_DIR/current_context_${project_name}"
+    if [ -f "$context_file" ]; then
+        local current_context=$(cat "$context_file")
         local context_title=$(yq eval ".milestones[] | select(.id == \"$current_context\") | .title" "$active_file")
         echo "🎯 Current: $current_context - $context_title"
         echo ""
@@ -483,9 +496,11 @@ smart_commit() {
     local parent_id=""
     local subtask_id=""
     
-    # Try to detect context
-    if [ -f "$CONFIG_DIR/current_context" ]; then
-        parent_id=$(cat "$CONFIG_DIR/current_context")
+    # Try to detect context (project-scoped)
+    local project_name=$(basename "$active_file" .yml)
+    local context_file="$CONFIG_DIR/current_context_${project_name}"
+    if [ -f "$context_file" ]; then
+        parent_id=$(cat "$context_file")
         local parent_title=$(yq eval ".milestones[] | select(.id == \"$parent_id\") | .title" "$active_file")
         
         if [ "$auto_mode" = "--auto" ]; then
@@ -538,8 +553,8 @@ smart_commit() {
             # Add milestone
             yq eval ".milestones += [{\"id\": \"$next_id\", \"title\": \"$auto_title\", \"release_status\": \"in-progress\", \"cycle_status\": \"out-of-cycle\"}]" -i "$active_file"
             
-            # Set as context
-            echo "$next_id" > "$CONFIG_DIR/current_context"
+                            # Set as context  
+                echo "$next_id" > "$context_file"
             
             # Create subtask
             subtask_id=$(generate_subtask_id "$next_id")
@@ -582,7 +597,7 @@ smart_commit() {
                 yq eval ".milestones += [{\"id\": \"$next_id\", \"title\": \"$auto_title\", \"release_status\": \"in-progress\", \"cycle_status\": \"out-of-cycle\"}]" -i "$active_file"
                 
                 # Set as context
-                echo "$next_id" > "$CONFIG_DIR/current_context"
+                echo "$next_id" > "$context_file"
                 
                 # Create subtask
                 subtask_id=$(generate_subtask_id "$next_id")
@@ -659,7 +674,7 @@ check_id_in_git_history() {
     fi
 }
 
-# Function to set working context
+# Function to set working context (project-scoped)
 set_context() {
     local milestone_id="$1"
     local active_file=$(get_active_file)
@@ -676,7 +691,9 @@ set_context() {
         return 1
     fi
     
-    echo "$milestone_id" > "$CONFIG_DIR/current_context"
+    # Use project-scoped context file
+    local project_name=$(basename "$active_file" .yml)
+    echo "$milestone_id" > "$CONFIG_DIR/current_context_${project_name}"
     echo "✅ Set working context to: $milestone_id - $title"
 }
 
