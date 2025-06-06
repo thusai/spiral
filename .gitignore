@@ -15,6 +15,7 @@ spiral
 .spiral/
 *.yml
 !example.yml
+!.github/workflows/*.yml
 
 # Development files
 *.log
