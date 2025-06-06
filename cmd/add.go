@@ -124,7 +124,7 @@ func AddCommand() *cli.Command {
 
 func addMilestone(c *cli.Context) error {
 	// Load roadmap
-	roadmap, err := core.LoadRoadmap("spiral.yml")
+	roadmap, err := core.LoadRoadmapFromFile("spiral.yml")
 	if err != nil {
 		return err
 	}
@@ -182,7 +182,7 @@ func addMilestone(c *cli.Context) error {
 	roadmap.Milestones = append(roadmap.Milestones, milestone)
 
 	// Save roadmap
-	if err := core.SaveRoadmap(roadmap, "spiral.yml"); err != nil {
+	if err := core.SaveRoadmapToFile(roadmap, "spiral.yml"); err != nil {
 		return fmt.Errorf("failed to save roadmap: %w", err)
 	}
 
@@ -206,7 +206,7 @@ func addMilestone(c *cli.Context) error {
 
 func addTask(c *cli.Context) error {
 	// Load roadmap
-	roadmap, err := core.LoadRoadmap("spiral.yml")
+	roadmap, err := core.LoadRoadmapFromFile("spiral.yml")
 	if err != nil {
 		return err
 	}
@@ -298,7 +298,7 @@ func addTask(c *cli.Context) error {
 	roadmap.Tasks = append(roadmap.Tasks, task)
 
 	// Save roadmap
-	if err := core.SaveRoadmap(roadmap, "spiral.yml"); err != nil {
+	if err := core.SaveRoadmapToFile(roadmap, "spiral.yml"); err != nil {
 		return fmt.Errorf("failed to save roadmap: %w", err)
 	}
 

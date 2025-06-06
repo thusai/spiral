@@ -240,4 +240,32 @@ func ParseCommitMessage(message string) (string, string, bool) {
 	}
 
 	return id, remainingMessage, true
+}
+
+// Convenience functions for direct use without IDGenerator instance
+
+// GenerateNextID generates the next ID for a given parent (convenience function)
+func GenerateNextID(parentID string, roadmap *types.Roadmap) (string, error) {
+	generator := NewIDGenerator(roadmap)
+	
+	// Parse parent to determine what type of ID to generate
+	parsedParent, err := types.ParseID(parentID)
+	if err != nil {
+		return "", fmt.Errorf("invalid parent ID: %w", err)
+	}
+
+	switch parsedParent.Level() {
+	case 0: // Parent is milestone, generate task
+		return generator.GenerateNextTaskID(parentID)
+	case 1: // Parent is task, generate subtask
+		return generator.GenerateNextSubtaskID(parentID)
+	default:
+		return "", fmt.Errorf("cannot create child of subtask %s", parentID)
+	}
+}
+
+// GenerateNextFamilyID generates the next milestone ID for a family (convenience function)
+func GenerateNextFamilyID(family string, roadmap *types.Roadmap) (string, error) {
+	generator := NewIDGenerator(roadmap)
+	return generator.GenerateNextMilestoneID(family), nil
 } 

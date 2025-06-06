@@ -44,7 +44,7 @@ func handleContext(c *cli.Context) error {
 
 func setContext(c *cli.Context, milestoneID string) error {
 	// Load roadmap to validate milestone exists
-	roadmap, err := core.LoadRoadmap("spiral.yml")
+	roadmap, err := core.LoadRoadmapFromFile("spiral.yml")
 	if err != nil {
 		return err
 	}
@@ -121,7 +121,7 @@ func showContext(c *cli.Context) error {
 	}
 
 	// Load roadmap to get milestone details
-	roadmap, err := core.LoadRoadmap("spiral.yml")
+	roadmap, err := core.LoadRoadmapFromFile("spiral.yml")
 	if err != nil {
 		return err
 	}

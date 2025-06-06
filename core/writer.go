@@ -10,8 +10,17 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// SaveRoadmap atomically writes a roadmap to a YAML file
-func SaveRoadmap(roadmap *types.Roadmap, filePath string) error {
+// SaveRoadmap (no file path) - convenience function using default file
+func SaveRoadmap(roadmap *types.Roadmap) error {
+	filePath, err := FindDefaultRoadmapFile()
+	if err != nil {
+		return err
+	}
+	return SaveRoadmapToFile(roadmap, filePath)
+}
+
+// SaveRoadmapToFile atomically writes a roadmap to a YAML file
+func SaveRoadmapToFile(roadmap *types.Roadmap, filePath string) error {
 	// Validate before saving
 	if err := ValidateRoadmap(roadmap); err != nil {
 		return fmt.Errorf("roadmap validation failed: %w", err)

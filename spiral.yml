@@ -5,8 +5,22 @@ milestones:
       priority: critical
       cycle_status: done
       status: planned
+    - id: S2
+      family: S
+      title: Create Smart Commit System
+      priority: critical
+      cycle_status: in-cycle
+      status: planned
 tasks:
     - id: S1.1
       parent_id: S1
       title: Implement family-prefixed ID generation
+      status: done
+    - id: S2.1
+      parent_id: S2
+      title: Implement context-aware commit detection
+      status: in-progress
+    - id: S2.2
+      parent_id: S2
+      title: Implement smart commit context detection
       status: done

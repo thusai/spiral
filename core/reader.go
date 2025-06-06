@@ -8,43 +8,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// LoadRoadmap reads and parses a YAML roadmap file
-func LoadRoadmap(filePath string) (*types.Roadmap, error) {
-	// Check if file exists
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		// Create default roadmap if file doesn't exist
-		roadmap := &types.Roadmap{
-			Milestones: []types.Milestone{},
-			Tasks:      []types.Task{},
-		}
-		if err := SaveRoadmap(roadmap, filePath); err != nil {
-			return nil, fmt.Errorf("failed to create default roadmap: %w", err)
-		}
-		return roadmap, nil
-	}
 
-	// Read file
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read roadmap file: %w", err)
-	}
-
-	// Parse YAML
-	var roadmap types.Roadmap
-	if err := yaml.Unmarshal(data, &roadmap); err != nil {
-		return nil, fmt.Errorf("failed to parse roadmap YAML: %w", err)
-	}
-
-	// Initialize empty slices if nil
-	if roadmap.Milestones == nil {
-		roadmap.Milestones = []types.Milestone{}
-	}
-	if roadmap.Tasks == nil {
-		roadmap.Tasks = []types.Task{}
-	}
-
-	return &roadmap, nil
-}
 
 // ValidateRoadmap performs basic validation on the roadmap structure
 func ValidateRoadmap(roadmap *types.Roadmap) error {
@@ -155,4 +119,51 @@ func GetRoadmapStats(roadmap *types.Roadmap) map[string]interface{} {
 	stats["in_cycle_tasks"] = len(roadmap.GetInCycleTasks())
 	
 	return stats
+}
+
+// LoadRoadmap (no params) - convenience function using default file
+func LoadRoadmap() (*types.Roadmap, error) {
+	filePath, err := FindDefaultRoadmapFile()
+	if err != nil {
+		return nil, err
+	}
+	return LoadRoadmapFromFile(filePath)
+}
+
+// LoadRoadmapFromFile loads from a specific file path (rename existing function)
+func LoadRoadmapFromFile(filePath string) (*types.Roadmap, error) {
+	// Check if file exists
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		// Create default roadmap if file doesn't exist
+		roadmap := &types.Roadmap{
+			Milestones: []types.Milestone{},
+			Tasks:      []types.Task{},
+		}
+		if err := SaveRoadmapToFile(roadmap, filePath); err != nil {
+			return nil, fmt.Errorf("failed to create default roadmap: %w", err)
+		}
+		return roadmap, nil
+	}
+
+	// Read file
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read roadmap file: %w", err)
+	}
+
+	// Parse YAML
+	var roadmap types.Roadmap
+	if err := yaml.Unmarshal(data, &roadmap); err != nil {
+		return nil, fmt.Errorf("failed to parse roadmap YAML: %w", err)
+	}
+
+	// Initialize empty slices if nil
+	if roadmap.Milestones == nil {
+		roadmap.Milestones = []types.Milestone{}
+	}
+	if roadmap.Tasks == nil {
+		roadmap.Tasks = []types.Task{}
+	}
+
+	return &roadmap, nil
 } 

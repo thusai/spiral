@@ -50,7 +50,7 @@ func ShowCommand() *cli.Command {
 
 func showMilestones(c *cli.Context) error {
 	// Load roadmap
-	roadmap, err := core.LoadRoadmap("spiral.yml")
+	roadmap, err := core.LoadRoadmapFromFile("spiral.yml")
 	if err != nil {
 		return err
 	}
@@ -82,7 +82,7 @@ func showMilestones(c *cli.Context) error {
 
 func showTasks(c *cli.Context) error {
 	// Load roadmap
-	roadmap, err := core.LoadRoadmap("spiral.yml")
+	roadmap, err := core.LoadRoadmapFromFile("spiral.yml")
 	if err != nil {
 		return err
 	}
@@ -114,7 +114,7 @@ func showTasks(c *cli.Context) error {
 
 func showCycle(c *cli.Context) error {
 	// Load roadmap
-	roadmap, err := core.LoadRoadmap("spiral.yml")
+	roadmap, err := core.LoadRoadmapFromFile("spiral.yml")
 	if err != nil {
 		return err
 	}
@@ -170,7 +170,7 @@ func showCycle(c *cli.Context) error {
 
 func showAll(c *cli.Context) error {
 	// Load roadmap
-	roadmap, err := core.LoadRoadmap("spiral.yml")
+	roadmap, err := core.LoadRoadmapFromFile("spiral.yml")
 	if err != nil {
 		return err
 	}
