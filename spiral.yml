@@ -1,0 +1,12 @@
+milestones:
+    - id: S1
+      family: S
+      title: Enhance ID Management in Phase 1.5
+      priority: critical
+      cycle_status: done
+      status: planned
+tasks:
+    - id: S1.1
+      parent_id: S1
+      title: Implement family-prefixed ID generation
+      status: done

@@ -1,0 +1,22 @@
+---
+description: start project
+globs: 
+alwaysApply: false
+---
+# Spiral Agent Commands - Core Milestone Workflow
+
+Spiral is a git-native roadmap tool. Focus on these essential milestone and subtask operations.
+
+## 🎯 Creating Milestones
+## 📋 Creating Subtasks  
+## 👀 Viewing Current State
+## ⚙️ Setting Work Context
+
+
+## 🔄 Essential Workflow Pattern
+1. Set context: `spiral context S4.1`
+2. Work on code
+3. Commit with auto subtask: `spiral commit "description of work" --auto`
+4. Check progress: `spiral show S4.1`
+5. Repeat until milestone complete
+6. Complete milestone: `spiral commit S4.1 --auto`
