@@ -24,3 +24,7 @@ tasks:
       parent_id: S2
       title: Implement smart commit context detection
       status: done
+    - id: S2.3
+      parent_id: S2
+      title: Add git integration with automatic staging
+      status: done
