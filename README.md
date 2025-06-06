@@ -12,10 +12,10 @@
 
 ```bash
 # For Apple Silicon (M1/M2/M3)
-curl -L https://github.com/yourusername/spiral/releases/latest/download/spiral-darwin-arm64 -o spiral
+curl -L https://github.com/thusai/spiral/releases/latest/download/spiral-darwin-arm64 -o spiral
 
 # For Intel Macs
-curl -L https://github.com/yourusername/spiral/releases/latest/download/spiral-darwin-amd64 -o spiral
+curl -L https://github.com/thusai/spiral/releases/latest/download/spiral-darwin-amd64 -o spiral
 
 # Make executable and install
 chmod +x spiral
