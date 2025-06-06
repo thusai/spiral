@@ -28,16 +28,16 @@ Works from anywhere. Forever. It's yours.
 
 **Start developing immediately** - no setup required:
 ```bash
-spiral add "Fix login bug - Add better validation"
-# 🎯 Auto-creating: D3.1 - Fix login bug  
-# ✅ Set working context to: D3.1
+spiral add milestone --title="Fix login bug" --family=D --priority=high
+# ✅ Added milestone D1: Fix login bug
+# 🎯 Auto-generating ID: D1
 ```
 
-**Keep developing** - context is maintained:
+**Keep developing** - add tasks to your milestone:
 ```bash
-spiral add "Add password strength meter"  
-# 🔍 Using context: D3.1 (Fix login bug)
-# ✅ Created: D3.1.1 - Add password strength meter
+spiral add task --parent=D1 --title="Add password strength meter"  
+# ✅ Added task D1.1: Add password strength meter
+# 🔍 Organized under: D1 (Fix login bug)
 ```
 
 **See your roadmap** - hierarchical and beautiful:
@@ -53,8 +53,8 @@ spiral show all
 
 **Smart context switching**:
 ```bash
-spiral context D3.2          # Focus on password reset
-spiral add "Email templates"  # Auto-creates D3.2.1
+spiral context D1            # Focus on login milestone
+spiral add subtask --parent=D1.1 --title="Email validation"  # Creates D1.1.1
 spiral context               # See current focus
 ```
 
@@ -62,11 +62,11 @@ spiral context               # See current focus
 
 | What You Want | Command |
 |---------------|---------|
-| Add milestone/task | `spiral add "Fix auth bug"` |
+| Add milestone | `spiral add milestone --title="Fix auth bug" --family=D` |
+| Add task | `spiral add task --parent=D1 --title="Add validation"` |
 | See roadmap | `spiral show all` |
-| Set focus | `spiral context D3.1` |
+| Set focus | `spiral context D1` |
 | Filter view | `spiral show --family D --status in-progress` |
-| Current cycle | `spiral show cycle` |
 
 ## Why Spiral?
 
