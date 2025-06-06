@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spiral/spiral/cmd"
+	"github.com/thusai/spiral/cmd"
 	"github.com/urfave/cli/v2"
 )
 

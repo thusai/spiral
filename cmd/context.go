@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	"github.com/fatih/color"
-	"github.com/spiral/spiral/config"
-	"github.com/spiral/spiral/core"
-	"github.com/spiral/spiral/types"
+	"github.com/thusai/spiral/config"
+	"github.com/thusai/spiral/core"
+	"github.com/thusai/spiral/types"
 	"github.com/urfave/cli/v2"
 )
 

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spiral/spiral/types"
+	"github.com/thusai/spiral/types"
 	"gopkg.in/yaml.v3"
 )
 

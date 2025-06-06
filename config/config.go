@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/spiral/spiral/types"
+	"github.com/thusai/spiral/types"
 )
 
 const (

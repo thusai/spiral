@@ -3,7 +3,7 @@ package core
 import (
 	"fmt"
 
-	"github.com/spiral/spiral/types"
+	"github.com/thusai/spiral/types"
 )
 
 // IDGenerator provides smart ID generation with family context

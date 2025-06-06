@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/spiral/spiral/types"
+	"github.com/thusai/spiral/types"
 	"gopkg.in/yaml.v3"
 )
 

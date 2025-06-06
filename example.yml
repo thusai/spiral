@@ -1,16 +1,15 @@
 milestones:
     - id: D1
       family: D
-      title: Setup Project Foundation
+      title: Project Foundation
       priority: critical
-      cycle_status: done
       status: done
     - id: D2
       family: D
-      title: Implement Core Features
+      title: Core Features
       priority: high
-      cycle_status: in-cycle
       status: in-progress
+      in_cycle: true
     - id: E1
       family: E
       title: Design User Experience
@@ -21,19 +20,24 @@ milestones:
 tasks:
     - id: D1.1
       parent_id: D1
-      title: Initialize project structure
+      title: Setup project structure
+      priority: critical
       status: done
     - id: D1.2
       parent_id: D1
-      title: Setup build system
+      title: Initialize configuration
+      priority: high
       status: done
     - id: D2.1
       parent_id: D2
-      title: Implement authentication
+      title: Authentication system
+      priority: high
       status: in-progress
+      in_cycle: true
     - id: D2.2
       parent_id: D2
-      title: Add database layer
+      title: API endpoints
+      priority: medium
       status: planned
     - id: E1.1
       parent_id: E1
@@ -45,11 +49,24 @@ tasks:
       status: planned
 
 subtasks:
+    - id: D1.1.1
+      parent_id: D1.1
+      title: Create directory structure
+      priority: critical
+      status: done
+    - id: D1.1.2
+      parent_id: D1.1
+      title: Setup build system
+      priority: high
+      status: done
     - id: D2.1.1
       parent_id: D2.1
-      title: Setup OAuth integration
-      status: in-progress
+      title: User login flow
+      priority: high
+      status: done
     - id: D2.1.2
       parent_id: D2.1
-      title: Implement session management
-      status: planned 
+      title: Session management
+      priority: high
+      status: in-progress
+      in_cycle: true 
