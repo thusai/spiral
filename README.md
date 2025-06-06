@@ -1,4 +1,4 @@
-# Spiral - Roadmaps That Follow Your Code
+# Spiral 🌀 - Roadmaps That Follow Your Code
 
 **Finally.** A roadmap tool that adapts to how you actually develop, not the other way around.
 
@@ -6,76 +6,202 @@
 - 🎯 **Smart context**: Auto-creates milestones from your commit messages  
 - 🔗 **Git-native**: Uses actual commit history as source of truth
 - ⚡ **Zero friction**: One command commits and tracks everything
+- 🏗️ **Hierarchical structure**: Family.Milestone.Task.Subtask organization
 
-## Quick Install
+## Quick Start
 
+### Installation
+
+**Option 1: Download Binary (Recommended)**
 ```bash
-git clone <this-repo> && cd spiral
-chmod +x install.sh && ./install.sh
+# Download latest release for your platform
+# macOS/Linux
+curl -L https://github.com/username/spiral/releases/latest/download/spiral-$(uname -s)-$(uname -m) -o spiral
+chmod +x spiral
+sudo mv spiral /usr/local/bin/
+
+# Windows
+# Download spiral.exe from releases page
 ```
 
-Works from anywhere. Forever. It's Yours.
-
-## The Magic ✨
-
-**Start developing immediately** - no setup required:
+**Option 2: Build from Source**
 ```bash
-spiral commit "Fix login bug - Add better validation" --auto
-# 🎯 Auto-creating milestone: S4.1 - Fix login bug  
-# ✅ Created commit: [S4.1.1] Fix login bug - Add better validation
-# ✅ Set working context to: S4.1
+git clone https://github.com/username/spiral.git
+cd spiral
+go build -o spiral main.go
+sudo mv spiral /usr/local/bin/  # or add to PATH
 ```
 
-**Keep developing** - context is maintained:
+### Initialize Your First Project
+
 ```bash
-spiral commit "Add password strength meter" --auto  
-# 🔍 Auto-detected context: S4.1 (Fix login bug)
-# ✅ Created commit: [S4.1.2] Add password strength meter
+# Create example configuration
+cp example.yml spiral.yml
+
+# Start using spiral immediately
+spiral show all
 ```
 
-**See your roadmap** - hierarchical and beautiful:
+## Core Features
+
+### 🎯 Hierarchical ID System
+
+Spiral uses a powerful Family.Milestone.Task.Subtask structure:
+```
+D3.1.2.1  →  Family D, Milestone 3, Task 1, Subtask 2, Sub-subtask 1
+```
+
+### 🔄 Smart Context Management
+
+Stay focused on what matters:
+```bash
+spiral context D3.1          # Set working context
+spiral add "Fix bug in auth" # Auto-creates D3.1.3
+spiral context               # See current context
+```
+
+### 📊 Beautiful Display
+
+Get instant visual feedback:
 ```bash
 spiral show all
-# 📋 S4.1    in-progress   Fix login bug
-#    └─ S4.1.1   done      Fix login bug - Add better validation  
-#    └─ S4.1.2   done      Add password strength meter
+# 📋 D3      in-progress   🔒 Authentication System
+#    ├─ D3.1     done     ✅ Core Login Flow  
+#    │  ├─ D3.1.1  done   ✅ OAuth integration
+#    │  └─ D3.1.2  done   ✅ Session management
+#    └─ D3.2  in-progress 🔄 Password Reset
+#       └─ D3.2.1  todo   📝 Email templates
 ```
 
-**Complete milestones** - git validates everything:
+### 🎨 Smart Filtering
+
+Find exactly what you need:
 ```bash
-spiral commit S4.1 --auto
-# ✅ Committed and marked milestone S4.1 as done
-
-spiral commit S4.1 --auto  
-# ❌ Milestone S4.1 has already been committed to git. Cannot commit again.
+spiral show --family D --priority critical    # Critical items in family D
+spiral show --status in-progress              # Active work
+spiral show --cycle in-cycle                  # Current cycle items
 ```
 
-## Core Commands
+## Command Reference
 
-| What You Want | Command |
-|---------------|---------|
-| Start working | `spiral commit "message" --auto` |
-| Set context | `spiral context S4.1` |
-| See roadmap | `spiral show all` |
-| Track subtasks | `spiral subtasks S4.1` |
-| Interactive mode | `spiral tui` |
+| Command | Description | Example |
+|---------|-------------|---------|
+| `spiral show [all\|cycle]` | Display roadmap | `spiral show all` |
+| `spiral add <title>` | Add new task/milestone | `spiral add "Fix login bug"` |
+| `spiral context [id]` | Set/show working context | `spiral context D3.1` |
+| `spiral edit <id>` | Modify existing item | `spiral edit D3.1.2` |
+| `spiral complete <id>` | Mark as done | `spiral complete D3.1` |
 
-## Multiple Projects? Easy.
+## Configuration
 
+Spiral uses a simple YAML structure. Copy `example.yml` to `spiral.yml` to get started:
+
+```yaml
+milestones:
+  - id: D1
+    family: D
+    title: Setup Project Foundation
+    priority: critical
+    status: done
+
+tasks:
+  - id: D1.1
+    parent_id: D1
+    title: Initialize project structure
+    status: done
+
+subtasks:
+  - id: D1.1.1
+    parent_id: D1.1
+    title: Setup directory structure
+    status: done
+```
+
+### Priority Levels
+- `critical` 🔴 - Must be done now
+- `high` 🟠 - Important for next release  
+- `medium` 🟡 - Nice to have
+- `low` 🟢 - Future consideration
+
+### Status Options
+- `planned` 📝 - Not started
+- `in-progress` 🔄 - Active work
+- `done` ✅ - Completed
+- `blocked` ⛔ - Cannot proceed
+
+## Advanced Features
+
+### Family Organization
+Organize work across teams or product areas:
+- `D` - Development/Backend
+- `E` - Engineering/Frontend  
+- `F` - Features/Product
+- `O` - Operations/DevOps
+- `S` - Security/Infrastructure
+
+### Cycle Management
+Track work in development cycles:
 ```bash
-spiral init myproject              # auto-detects YAML + schema files
-spiral use myproject              # switch between projects  
-spiral projects                   # see all configured projects
+spiral show cycle           # Show current cycle work
+spiral cycle start D3       # Start new cycle with milestone D3
+spiral cycle complete       # Complete current cycle
 ```
+
+### Git Integration (Coming Soon)
+Spiral will integrate with git for automatic commit tagging:
+```bash
+git commit -m "[D3.1.2] Fix authentication timeout"
+# Automatically updates spiral.yml
+```
+
+## Why Spiral?
+
+### Traditional Tools 😞
+- Heavy project management overhead
+- Rigid structures that don't match development reality
+- Roadmaps become outdated the moment you create them
+- Context switching between code and planning tools
+
+### Spiral 😊  
+- Lightweight CLI that lives in your terminal
+- Hierarchical structure that grows with your project
+- Real-time updates as you work
+- Single source of truth that stays current
+
+## Development
+
+### Building
+```bash
+go build -o spiral main.go
+```
+
+### Testing
+```bash
+go test ./...
+```
+
+### Contributing
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## License
+
+MIT License - see [LICENSE](LICENSE) file for details.
+
+## Roadmap
+
+- [ ] Git commit integration with automatic tagging
+- [ ] Interactive TUI mode
+- [ ] Multi-project management
+- [ ] Team collaboration features
+- [ ] Advanced reporting and analytics
+- [ ] IDE integrations
 
 ---
 
-**Want the full garage tour?** This is just the surface. Spiral handles schema validation, cycle planning, milestone dependencies, custom fields, and scales from solo projects to enterprise roadmaps.
+**Ready to spiral? 🌀** 
 
-But you probably just want to start committing. So do that. 🚀
-
----
-
-**For AI Agents**: 
-- **Cursor**: Use [`spiral_agent.mdc`](spiral_agent.mdc) - Add to cursor rules for automatic agent assistance
-- **Other LLMs**: See [`spiral_agent.yml`](spiral_agent.yml) for comprehensive usage patterns and decision trees
+Start with `spiral show all` and watch your roadmap come alive.

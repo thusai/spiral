@@ -1,0 +1,51 @@
+# Binaries and build artifacts
+spiral
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Go build artifacts
+*.test
+*.out
+/dist/
+/build/
+
+# User-specific runtime data
+.spiral/
+*.yml
+!example.yml
+
+# Development files
+*.log
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Test artifacts
+coverage.txt
+*.cover
+
+# Temporary files
+*.tmp
+*.temp
+.cursor/
+
+# Config files (users should create their own)
+config/
+!config/example/
+
+# Development documentation (keep implementation docs private)
+PHASE_*.md
+TECHNICAL_DESIGN_*.md
+implementation-plan.md
+spiral_agent.mdc
+spiral_agent.yml
+v0.yml
+test*.md
+spiral.sh
+setup.sh
+example_usage.md 

@@ -1,0 +1,55 @@
+milestones:
+    - id: D1
+      family: D
+      title: Setup Project Foundation
+      priority: critical
+      cycle_status: done
+      status: done
+    - id: D2
+      family: D
+      title: Implement Core Features
+      priority: high
+      cycle_status: in-cycle
+      status: in-progress
+    - id: E1
+      family: E
+      title: Design User Experience
+      priority: medium
+      cycle_status: planned
+      status: planned
+
+tasks:
+    - id: D1.1
+      parent_id: D1
+      title: Initialize project structure
+      status: done
+    - id: D1.2
+      parent_id: D1
+      title: Setup build system
+      status: done
+    - id: D2.1
+      parent_id: D2
+      title: Implement authentication
+      status: in-progress
+    - id: D2.2
+      parent_id: D2
+      title: Add database layer
+      status: planned
+    - id: E1.1
+      parent_id: E1
+      title: Create wireframes
+      status: planned
+    - id: E1.2
+      parent_id: E1
+      title: Design component library
+      status: planned
+
+subtasks:
+    - id: D2.1.1
+      parent_id: D2.1
+      title: Setup OAuth integration
+      status: in-progress
+    - id: D2.1.2
+      parent_id: D2.1
+      title: Implement session management
+      status: planned 

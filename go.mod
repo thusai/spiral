@@ -1,4 +1,4 @@
-module github.com/spiral/spiral
+module github.com/thusai/spiral
 
 go 1.21
 
